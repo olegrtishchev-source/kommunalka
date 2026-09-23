@@ -119,3 +119,43 @@ create table receipts (
 );
 
 create index idx_receipts_payment_id on receipts (payment_id);
+
+-- ===== очистка после спайка (Этап 1) =====
+-- Временная таблица спайка больше не нужна — реальные таблицы её заменяют.
+drop table if exists spike_test;
+
+-- ===== RLS: доступ только владельцу записи (Этап 2.3) =====
+
+alter table suppliers enable row level security;
+create policy "suppliers_owner" on suppliers for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+alter table channels enable row level security;
+create policy "channels_owner" on channels for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+alter table readings enable row level security;
+create policy "readings_owner" on readings for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+alter table payments enable row level security;
+create policy "payments_owner" on payments for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- receipts не хранит user_id напрямую — владелец проверяется через payment_id
+alter table receipts enable row level security;
+create policy "receipts_owner" on receipts for all
+  using (
+    exists (select 1 from payments p where p.id = receipts.payment_id and p.user_id = auth.uid())
+  )
+  with check (
+    exists (select 1 from payments p where p.id = receipts.payment_id and p.user_id = auth.uid())
+  );
+
+-- Примечание: политики для Supabase Storage (bucket с файлами чеков)
+-- настраиваются отдельно при создании bucket на Этапе 3.8 — RLS на таблицах
+-- к файлам в Storage не относится.
