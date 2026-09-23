@@ -9,11 +9,11 @@ import 'database/app_database.dart';
 /// Flutter ↔ drift (локальная БД) на Android.
 /// Publishable key безопасен для клиентского кода (не секрет).
 const supabaseUrl = 'https://jvroshiynvwrjzzztfsx.supabase.co';
-const supabaseAnonKey = 'sb_publishable_IpDeMNLn5LQjl8DqBUw5Dw_yHPeTWzx';
+const supabasePublishableKey = 'sb_publishable_IpDeMNLn5LQjl8DqBUw5Dw_yHPeTWzx';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
   runApp(const SpikeApp());
 }
 
