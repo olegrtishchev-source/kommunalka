@@ -41,6 +41,10 @@ dependencies:
   drift_flutter: ^0.2.4
   path_provider: ^2.1.5
 
+  # Архитектура — см. Этап 2.4 плана
+  flutter_riverpod: ^2.6.1
+  go_router: ^15.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
