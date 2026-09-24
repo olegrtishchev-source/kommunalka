@@ -87,7 +87,6 @@ class PaymentRepository {
   Future<Payment> recordPayment({
     required String paymentId,
     required double actualAmount,
-    required String bank,
     required DateTime paymentDate,
   }) async {
     final cached = await _dao.getById(paymentId);
@@ -105,7 +104,6 @@ class PaymentRepository {
           .from(SupabaseTables.payments)
           .update({
             'actual_amount': actualAmount,
-            'bank': bank,
             'payment_date': formatDateOnly(paymentDate),
             'status': status.dbValue,
           })
@@ -132,7 +130,6 @@ class PaymentRepository {
       consumption: Value(p.consumption),
       calculatedAmount: Value(p.calculatedAmount),
       actualAmount: Value(p.actualAmount),
-      bank: Value(p.bank),
       status: Value(p.status.dbValue),
       paymentDate: Value(p.paymentDate),
       createdAt: Value(p.createdAt),

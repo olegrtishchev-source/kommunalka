@@ -94,7 +94,6 @@ class Payment {
     this.consumption,
     required this.calculatedAmount,
     this.actualAmount,
-    this.bank,
     required this.status,
     this.paymentDate,
     required this.createdAt,
@@ -111,7 +110,6 @@ class Payment {
   final double? consumption;
   final double calculatedAmount;
   final double? actualAmount;
-  final String? bank;
   final PaymentStatus status;
   final DateTime? paymentDate;
   final DateTime createdAt;
@@ -130,7 +128,6 @@ class Payment {
       consumption: parseDoubleOrNull(json['consumption']),
       calculatedAmount: parseDouble(json['calculated_amount']),
       actualAmount: parseDoubleOrNull(json['actual_amount']),
-      bank: json['bank'] as String?,
       status: PaymentStatus.fromDb(json['status'] as String),
       paymentDate: parseDateOrNull(json['payment_date']),
       createdAt: parseDate(json['created_at']),
@@ -148,7 +145,6 @@ class Payment {
       'consumption': consumption,
       'calculated_amount': calculatedAmount,
       'actual_amount': actualAmount,
-      'bank': bank,
       'status': status.dbValue,
       'payment_date': paymentDate != null ? formatDateOnly(paymentDate!) : null,
       'created_at': createdAt.toIso8601String(),

@@ -13,7 +13,6 @@ class Payments extends Table {
   RealColumn get consumption => real().nullable()();
   RealColumn get calculatedAmount => real()();
   RealColumn get actualAmount => real().nullable()();
-  TextColumn get bank => text().nullable()();
   TextColumn get status => text()();
   DateTimeColumn get paymentDate => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();

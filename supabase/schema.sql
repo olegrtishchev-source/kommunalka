@@ -94,7 +94,6 @@ create table payments (
   consumption numeric(12, 3),
   calculated_amount numeric(10, 2) not null,
   actual_amount numeric(10, 2),
-  bank text,
   status text not null default 'pending' check (status in ('pending', 'partially_paid', 'paid')),
   payment_date date,
   created_at timestamptz not null default now(),

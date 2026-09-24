@@ -1810,15 +1810,6 @@ class $PaymentsTable extends Payments
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _bankMeta = const VerificationMeta('bank');
-  @override
-  late final GeneratedColumn<String> bank = GeneratedColumn<String>(
-    'bank',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -1871,7 +1862,6 @@ class $PaymentsTable extends Payments
     consumption,
     calculatedAmount,
     actualAmount,
-    bank,
     status,
     paymentDate,
     createdAt,
@@ -1956,12 +1946,6 @@ class $PaymentsTable extends Payments
         ),
       );
     }
-    if (data.containsKey('bank')) {
-      context.handle(
-        _bankMeta,
-        bank.isAcceptableOrUnknown(data['bank']!, _bankMeta),
-      );
-    }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
@@ -2036,10 +2020,6 @@ class $PaymentsTable extends Payments
         DriftSqlType.double,
         data['${effectivePrefix}actual_amount'],
       ),
-      bank: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}bank'],
-      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -2078,7 +2058,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
   final double? consumption;
   final double calculatedAmount;
   final double? actualAmount;
-  final String? bank;
   final String status;
   final DateTime? paymentDate;
   final DateTime createdAt;
@@ -2092,7 +2071,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     this.consumption,
     required this.calculatedAmount,
     this.actualAmount,
-    this.bank,
     required this.status,
     this.paymentDate,
     required this.createdAt,
@@ -2114,9 +2092,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     map['calculated_amount'] = Variable<double>(calculatedAmount);
     if (!nullToAbsent || actualAmount != null) {
       map['actual_amount'] = Variable<double>(actualAmount);
-    }
-    if (!nullToAbsent || bank != null) {
-      map['bank'] = Variable<String>(bank);
     }
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || paymentDate != null) {
@@ -2143,7 +2118,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       actualAmount: actualAmount == null && nullToAbsent
           ? const Value.absent()
           : Value(actualAmount),
-      bank: bank == null && nullToAbsent ? const Value.absent() : Value(bank),
       status: Value(status),
       paymentDate: paymentDate == null && nullToAbsent
           ? const Value.absent()
@@ -2167,7 +2141,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       consumption: serializer.fromJson<double?>(json['consumption']),
       calculatedAmount: serializer.fromJson<double>(json['calculatedAmount']),
       actualAmount: serializer.fromJson<double?>(json['actualAmount']),
-      bank: serializer.fromJson<String?>(json['bank']),
       status: serializer.fromJson<String>(json['status']),
       paymentDate: serializer.fromJson<DateTime?>(json['paymentDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -2186,7 +2159,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       'consumption': serializer.toJson<double?>(consumption),
       'calculatedAmount': serializer.toJson<double>(calculatedAmount),
       'actualAmount': serializer.toJson<double?>(actualAmount),
-      'bank': serializer.toJson<String?>(bank),
       'status': serializer.toJson<String>(status),
       'paymentDate': serializer.toJson<DateTime?>(paymentDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -2203,7 +2175,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     Value<double?> consumption = const Value.absent(),
     double? calculatedAmount,
     Value<double?> actualAmount = const Value.absent(),
-    Value<String?> bank = const Value.absent(),
     String? status,
     Value<DateTime?> paymentDate = const Value.absent(),
     DateTime? createdAt,
@@ -2219,7 +2190,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     consumption: consumption.present ? consumption.value : this.consumption,
     calculatedAmount: calculatedAmount ?? this.calculatedAmount,
     actualAmount: actualAmount.present ? actualAmount.value : this.actualAmount,
-    bank: bank.present ? bank.value : this.bank,
     status: status ?? this.status,
     paymentDate: paymentDate.present ? paymentDate.value : this.paymentDate,
     createdAt: createdAt ?? this.createdAt,
@@ -2245,7 +2215,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
       actualAmount: data.actualAmount.present
           ? data.actualAmount.value
           : this.actualAmount,
-      bank: data.bank.present ? data.bank.value : this.bank,
       status: data.status.present ? data.status.value : this.status,
       paymentDate: data.paymentDate.present
           ? data.paymentDate.value
@@ -2266,7 +2235,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
           ..write('consumption: $consumption, ')
           ..write('calculatedAmount: $calculatedAmount, ')
           ..write('actualAmount: $actualAmount, ')
-          ..write('bank: $bank, ')
           ..write('status: $status, ')
           ..write('paymentDate: $paymentDate, ')
           ..write('createdAt: $createdAt, ')
@@ -2285,7 +2253,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
     consumption,
     calculatedAmount,
     actualAmount,
-    bank,
     status,
     paymentDate,
     createdAt,
@@ -2303,7 +2270,6 @@ class PaymentRow extends DataClass implements Insertable<PaymentRow> {
           other.consumption == this.consumption &&
           other.calculatedAmount == this.calculatedAmount &&
           other.actualAmount == this.actualAmount &&
-          other.bank == this.bank &&
           other.status == this.status &&
           other.paymentDate == this.paymentDate &&
           other.createdAt == this.createdAt &&
@@ -2319,7 +2285,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
   final Value<double?> consumption;
   final Value<double> calculatedAmount;
   final Value<double?> actualAmount;
-  final Value<String?> bank;
   final Value<String> status;
   final Value<DateTime?> paymentDate;
   final Value<DateTime> createdAt;
@@ -2334,7 +2299,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     this.consumption = const Value.absent(),
     this.calculatedAmount = const Value.absent(),
     this.actualAmount = const Value.absent(),
-    this.bank = const Value.absent(),
     this.status = const Value.absent(),
     this.paymentDate = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2350,7 +2314,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     this.consumption = const Value.absent(),
     required double calculatedAmount,
     this.actualAmount = const Value.absent(),
-    this.bank = const Value.absent(),
     required String status,
     this.paymentDate = const Value.absent(),
     required DateTime createdAt,
@@ -2373,7 +2336,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     Expression<double>? consumption,
     Expression<double>? calculatedAmount,
     Expression<double>? actualAmount,
-    Expression<String>? bank,
     Expression<String>? status,
     Expression<DateTime>? paymentDate,
     Expression<DateTime>? createdAt,
@@ -2389,7 +2351,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
       if (consumption != null) 'consumption': consumption,
       if (calculatedAmount != null) 'calculated_amount': calculatedAmount,
       if (actualAmount != null) 'actual_amount': actualAmount,
-      if (bank != null) 'bank': bank,
       if (status != null) 'status': status,
       if (paymentDate != null) 'payment_date': paymentDate,
       if (createdAt != null) 'created_at': createdAt,
@@ -2407,7 +2368,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     Value<double?>? consumption,
     Value<double>? calculatedAmount,
     Value<double?>? actualAmount,
-    Value<String?>? bank,
     Value<String>? status,
     Value<DateTime?>? paymentDate,
     Value<DateTime>? createdAt,
@@ -2423,7 +2383,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
       consumption: consumption ?? this.consumption,
       calculatedAmount: calculatedAmount ?? this.calculatedAmount,
       actualAmount: actualAmount ?? this.actualAmount,
-      bank: bank ?? this.bank,
       status: status ?? this.status,
       paymentDate: paymentDate ?? this.paymentDate,
       createdAt: createdAt ?? this.createdAt,
@@ -2459,9 +2418,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
     if (actualAmount.present) {
       map['actual_amount'] = Variable<double>(actualAmount.value);
     }
-    if (bank.present) {
-      map['bank'] = Variable<String>(bank.value);
-    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -2491,7 +2447,6 @@ class PaymentsCompanion extends UpdateCompanion<PaymentRow> {
           ..write('consumption: $consumption, ')
           ..write('calculatedAmount: $calculatedAmount, ')
           ..write('actualAmount: $actualAmount, ')
-          ..write('bank: $bank, ')
           ..write('status: $status, ')
           ..write('paymentDate: $paymentDate, ')
           ..write('createdAt: $createdAt, ')
@@ -3684,7 +3639,6 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<double?> consumption,
       required double calculatedAmount,
       Value<double?> actualAmount,
-      Value<String?> bank,
       required String status,
       Value<DateTime?> paymentDate,
       required DateTime createdAt,
@@ -3701,7 +3655,6 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<double?> consumption,
       Value<double> calculatedAmount,
       Value<double?> actualAmount,
-      Value<String?> bank,
       Value<String> status,
       Value<DateTime?> paymentDate,
       Value<DateTime> createdAt,
@@ -3755,11 +3708,6 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<double> get actualAmount => $composableBuilder(
     column: $table.actualAmount,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get bank => $composableBuilder(
-    column: $table.bank,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3833,11 +3781,6 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get bank => $composableBuilder(
-    column: $table.bank,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -3902,9 +3845,6 @@ class $$PaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get bank =>
-      $composableBuilder(column: $table.bank, builder: (column) => column);
-
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
@@ -3959,7 +3899,6 @@ class $$PaymentsTableTableManager
                 Value<double?> consumption = const Value.absent(),
                 Value<double> calculatedAmount = const Value.absent(),
                 Value<double?> actualAmount = const Value.absent(),
-                Value<String?> bank = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<DateTime?> paymentDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -3974,7 +3913,6 @@ class $$PaymentsTableTableManager
                 consumption: consumption,
                 calculatedAmount: calculatedAmount,
                 actualAmount: actualAmount,
-                bank: bank,
                 status: status,
                 paymentDate: paymentDate,
                 createdAt: createdAt,
@@ -3991,7 +3929,6 @@ class $$PaymentsTableTableManager
                 Value<double?> consumption = const Value.absent(),
                 required double calculatedAmount,
                 Value<double?> actualAmount = const Value.absent(),
-                Value<String?> bank = const Value.absent(),
                 required String status,
                 Value<DateTime?> paymentDate = const Value.absent(),
                 required DateTime createdAt,
@@ -4006,7 +3943,6 @@ class $$PaymentsTableTableManager
                 consumption: consumption,
                 calculatedAmount: calculatedAmount,
                 actualAmount: actualAmount,
-                bank: bank,
                 status: status,
                 paymentDate: paymentDate,
                 createdAt: createdAt,

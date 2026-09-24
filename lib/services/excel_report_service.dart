@@ -20,7 +20,6 @@ class ExcelReportRow {
     this.tariffText,
     required this.calculatedAmount,
     this.actualAmount,
-    this.bank,
     this.paymentDate,
     this.receiptUrl,
     required this.status,
@@ -39,7 +38,6 @@ class ExcelReportRow {
   final String? tariffText;
   final double calculatedAmount;
   final double? actualAmount;
-  final String? bank;
   final DateTime? paymentDate;
   final String? receiptUrl;
   final PaymentStatus status;
@@ -61,7 +59,6 @@ class ExcelReportRow {
       tariffText: _formatChannelValues(snapshot, (e) => e.tariff),
       calculatedAmount: payment.calculatedAmount,
       actualAmount: payment.actualAmount,
-      bank: payment.bank,
       paymentDate: payment.paymentDate,
       receiptUrl: receiptUrl,
       status: payment.status,
@@ -90,7 +87,6 @@ class ExcelReportService {
     'Тариф',
     'Сумма (расчётная)',
     'Оплачено по факту',
-    'Банк',
     'Дата оплаты',
     'Чек',
     'Статус',
@@ -159,7 +155,6 @@ class ExcelReportService {
       null,
       null,
       null,
-      null,
     ], style: CellStyle(bold: true));
 
     final bytes = excel.save();
@@ -178,7 +173,6 @@ class ExcelReportService {
       row.tariffText == null ? null : TextCellValue(row.tariffText!),
       DoubleCellValue(row.calculatedAmount),
       row.actualAmount == null ? null : DoubleCellValue(row.actualAmount!),
-      row.bank == null ? null : TextCellValue(row.bank!),
       row.paymentDate == null ? null : TextCellValue(formatDateOnly(row.paymentDate!)),
       // Пакет excel не поддерживает настоящие гиперссылки в ячейках —
       // кладём саму ссылку текстом; Excel при открытии файла обычно сам

@@ -7,9 +7,14 @@ import '../../models/payment.dart';
 import '../../providers/payment_provider.dart';
 
 /// Оплата (ТЗ §4.4, схема 2.5, сценарий 3). Минимальная версия для
-/// Этапа 3.5: факт-сумма, банк, дата — без реквизитов поставщика
-/// (обычно видны с карточки /suppliers/:id — Этап 4) и без перехода на
-/// прикрепление чека («по желанию», не входит в тончайшую связку).
+/// Этапа 3.5: факт-сумма, дата — без реквизитов поставщика (обычно видны
+/// с карточки /suppliers/:id — Этап 4) и без перехода на прикрепление
+/// чека («по желанию», не входит в тончайшую связку).
+///
+/// Поля «Банк» больше нет (убрано из модели/схемы/отчёта по ходу
+/// практической проверки 3.5.4) — банк, через который прошла оплата,
+/// не фиксируется отдельным полем, эта информация остаётся на самом
+/// чеке (ТЗ §4.5), который прикрепляется отдельно.
 ///
 /// Формально не входит в дословный список пунктов 3.5.1–3.5.5, но без
 /// него «Далее» на экране показания создавал бы Payment без единого
@@ -28,7 +33,6 @@ class PaymentScreen extends ConsumerStatefulWidget {
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
-  final _bankController = TextEditingController();
   DateTime _paymentDate = DateTime.now();
 
   bool _loading = true;
@@ -45,7 +49,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   @override
   void dispose() {
     _amountController.dispose();
-    _bankController.dispose();
     super.dispose();
   }
 
@@ -78,7 +81,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       final updated = await ref.read(paymentRepositoryProvider).recordPayment(
             paymentId: widget.paymentId,
             actualAmount: amount,
-            bank: _bankController.text.trim(),
             paymentDate: _paymentDate,
           );
       if (!mounted) return;
@@ -135,12 +137,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                             }
                             return null;
                           },
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _bankController,
-                          decoration: const InputDecoration(labelText: 'Банк'),
-                          validator: (v) => (v == null || v.isEmpty) ? 'Введите банк' : null,
                         ),
                         const SizedBox(height: 12),
                         Row(

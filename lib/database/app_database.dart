@@ -22,7 +22,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,6 +39,9 @@ class AppDatabase extends _$AppDatabase {
           // останется в файле БД как безобидный мусор; чтобы убрать её
           // физически — переустановить приложение на тестовом устройстве
           // (не обязательно для корректной работы, просто для чистоты).
+          //
+          // v3 → v4 (Этап 3.5.4): убрано поле bank у Payments — источник
+          // информации о банке теперь чек (ТЗ §4.5), а не отдельное поле.
           for (final table in allTables) {
             await m.deleteTable(table.actualTableName);
           }
