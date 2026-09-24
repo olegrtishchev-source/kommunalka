@@ -14,6 +14,14 @@ import '../../providers/reading_provider.dart';
 /// каналом — форма 3.5.1 всегда создаёт поставщика с одним каналом.
 /// Несколько/производные каналы, тип without_readings — Этап 4 (экран 4.3).
 ///
+/// Дата показания — редактируемое поле (по умолчанию сегодня), не
+/// жёстко «сейчас»: в supabase/schema.sql есть `unique (channel_id,
+/// reading_date)` («защита от случайного дублирования показания на одну
+/// и ту же дату», Этап 2.2) — обнаружено практической проверкой 3.5.4,
+/// когда две даты подряд совпали на «сегодня» и второе показание не
+/// прошло. Заодно период платежа берётся из даты показания, а не из
+/// DateTime.now() — платёж логически привязан к периоду показания.
+///
 /// Если у канала ещё нет ни одного показания — это его первое показание:
 /// расход посчитать не от чего, поэтому платёж не создаётся, показание
 /// просто сохраняется как отправная точка. Полноценная обработка
@@ -33,6 +41,7 @@ class ReadingEntryScreen extends ConsumerStatefulWidget {
 class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _valueController = TextEditingController();
+  DateTime _readingDate = DateTime.now();
 
   bool _loading = true;
   bool _submitting = false;
@@ -82,6 +91,16 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
     }
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _readingDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _readingDate = picked);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final channel = _channel;
@@ -95,7 +114,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       await ref.read(readingRepositoryProvider).create(
             channelId: channel.id,
             value: value,
-            readingDate: DateTime.now(),
+            readingDate: _readingDate,
           );
 
       final previous = _previous;
@@ -117,7 +136,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       final amount = consumption * channel.tariff;
       final payment = await ref.read(paymentRepositoryProvider).create(
             supplierId: widget.supplierId,
-            period: DateTime(DateTime.now().year, DateTime.now().month, 1),
+            period: DateTime(_readingDate.year, _readingDate.month, 1),
             consumption: consumption,
             calculatedAmount: amount,
           );
@@ -162,6 +181,19 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text(
+                          'Дата показания: '
+                          '${_readingDate.day}.${_readingDate.month}.${_readingDate.year}',
+                        ),
+                        TextButton(
+                          onPressed: _pickDate,
+                          child: const Text('Изменить'),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     if (_error != null) ...[
