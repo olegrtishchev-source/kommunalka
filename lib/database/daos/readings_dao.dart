@@ -30,4 +30,15 @@ class ReadingsDao extends DatabaseAccessor<AppDatabase>
   Future<void> upsert(ReadingsCompanion entry) {
     return into(readings).insertOnConflictUpdate(entry);
   }
+
+  /// Есть ли у канала хоть одно сохранённое показание — используется
+  /// ChannelRepository при удалении канала (ТЗ §4.1: канал с показаниями
+  /// удалить нельзя, доступно только переименование/редактирование).
+  Future<bool> hasAnyForChannel(String channelId) async {
+    final row = await (select(readings)
+          ..where((t) => t.channelId.equals(channelId))
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null;
+  }
 }

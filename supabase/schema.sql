@@ -63,7 +63,10 @@ create trigger trg_channels_updated_at
 create table readings (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  channel_id uuid not null references channels(id) on delete cascade,
+  -- restrict, а не cascade: канал с показаниями удалить нельзя
+  -- (ТЗ §4.1) — на уровне БД это застраховано так же, как на
+  -- уровне приложения (ChannelRepository.delete, Этап 3.6b)
+  channel_id uuid not null references channels(id) on delete restrict,
   value numeric(12, 3) not null,
   reading_date date not null,
   meter_replaced boolean not null default false,
