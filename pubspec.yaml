@@ -46,7 +46,10 @@ dependencies:
   go_router: ^15.1.2
 
   # Сжатие фото чеков перед загрузкой в Supabase Storage — см. Этап 3.8 плана
-  image: ^4.5.4
+  image: ^4.3.0
+
+  # Формирование Excel-отчёта — см. Этап 3.10 плана
+  excel: ^4.0.6
 
 dev_dependencies:
   flutter_test:
