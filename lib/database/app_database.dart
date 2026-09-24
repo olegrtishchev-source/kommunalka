@@ -14,23 +14,15 @@ import 'tables/suppliers_table.dart';
 
 part 'app_database.g.dart';
 
-/// Спайк Этапа 1.5 — минимальная локальная таблица, оставлена как есть до
-/// замены спайк-экрана настоящими экранами (Этап 3.5). Реальная схема ниже.
-class SpikeLocal extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get note => text()();
-  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
-}
-
 @DriftDatabase(
-  tables: [SpikeLocal, Suppliers, Channels, Readings, Payments, Receipts],
+  tables: [Suppliers, Channels, Readings, Payments, Receipts],
   daos: [SuppliersDao, ChannelsDao, ReadingsDao, PaymentsDao, ReceiptsDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +32,13 @@ class AppDatabase extends _$AppDatabase {
           // источник истины: при смене схемы кеша проще пересоздать таблицы
           // и заново наполнить их через pull-синхронизацию (ТЗ §4.7), чем
           // писать пошаговые миграции для промежуточных версий кеша.
+          //
+          // v2 → v3 (Этап 3.5): удалена спайк-таблица SpikeLocal — цикл
+          // deleteTable ниже проходит по актуальному allTables (уже без
+          // неё), поэтому саму spike_local в SQLite он не тронет. Она
+          // останется в файле БД как безобидный мусор; чтобы убрать её
+          // физически — переустановить приложение на тестовом устройстве
+          // (не обязательно для корректной работы, просто для чистоты).
           for (final table in allTables) {
             await m.deleteTable(table.actualTableName);
           }
