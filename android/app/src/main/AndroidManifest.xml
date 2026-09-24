@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Нужно для сети в любом варианте сборки, включая release
-         (flutter build apk --release, ТЗ §6) — до Этапа 3.11 разрешение
+         (команда сборки release из ТЗ §6) — до Этапа 3.11 разрешение
          на интернет было только в debug/profile-манифестах (добавляются
          Flutter-шаблоном автоматически для инструментов разработки), в
          release его не было бы вовсе, и Supabase-синхронизация молча не
