@@ -8,10 +8,13 @@ import '../database/daos/receipts_dao.dart';
 import '../models/receipt.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_tables.dart';
+import 'repository_exceptions.dart';
 
 /// Чеки об оплате: чтение — из локального кеша (drift, реактивно), запись —
 /// сначала файл в Storage, потом строка в Supabase, потом кеш (та же
-/// схема, что и у остальных репозиториев, см. журнал 3.5–3.7).
+/// схема, что и у остальных репозиториев, см. журнал 3.5–3.7). Сетевые/
+/// серверные ошибки Storage и Supabase — через guardRepositoryCall
+/// (Этап 3.9); compress() — чистая локальная операция, её не оборачиваем.
 class ReceiptRepository {
   ReceiptRepository(this._client, this._dao, this._storage);
 
@@ -27,7 +30,9 @@ class ReceiptRepository {
   /// Подтягивает все чеки пользователя из Supabase (RLS через
   /// payment_id → payments.user_id, см. журнал 2.3) и обновляет кеш.
   Future<void> refresh() async {
-    final rows = await _client.from(SupabaseTables.receipts).select();
+    final rows = await guardRepositoryCall(
+      () => _client.from(SupabaseTables.receipts).select(),
+    );
     for (final row in List<Map<String, dynamic>>.from(rows)) {
       await _dao.upsert(_toCompanion(Receipt.fromJson(row)));
     }
@@ -55,13 +60,15 @@ class ReceiptRepository {
     }
     final compressed = _storage.compress(imageBytes);
     final path = '$userId/$paymentId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await _storage.upload(compressed, path);
+    await guardRepositoryCall(() => _storage.upload(compressed, path));
 
-    final row = await _client
-        .from(SupabaseTables.receipts)
-        .insert({'payment_id': paymentId, 'file_path': path})
-        .select()
-        .single();
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.receipts)
+          .insert({'payment_id': paymentId, 'file_path': path})
+          .select()
+          .single(),
+    );
     final receipt = Receipt.fromJson(row);
     await _dao.upsert(_toCompanion(receipt));
     return receipt;
@@ -70,9 +77,11 @@ class ReceiptRepository {
   /// Кликабельная ссылка на файл чека (ТЗ §4.5) — подписанная, бакет
   /// приватный, публичного URL нет.
   Future<String> getUrl(Receipt receipt, {int expiresInSeconds = 3600}) {
-    return _storage.getSignedUrl(
-      receipt.filePath,
-      expiresInSeconds: expiresInSeconds,
+    return guardRepositoryCall(
+      () => _storage.getSignedUrl(
+        receipt.filePath,
+        expiresInSeconds: expiresInSeconds,
+      ),
     );
   }
 

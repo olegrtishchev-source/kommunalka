@@ -8,10 +8,12 @@ import '../database/daos/payments_dao.dart';
 import '../models/payment.dart';
 import '../services/supabase_tables.dart';
 import '../utils/json_parsing.dart';
+import 'repository_exceptions.dart';
 
 /// Платежи: чтение — из локального кеша (drift, реактивно), запись —
 /// сначала в Supabase, потом в кеш (та же схема, что и в остальных
-/// репозиториях, см. журнал 3.5/3.6).
+/// репозиториях, см. журнал 3.5/3.6). Сетевые/серверные ошибки — через
+/// guardRepositoryCall (Этап 3.9).
 class PaymentRepository {
   PaymentRepository(this._client, this._dao);
 
@@ -35,7 +37,9 @@ class PaymentRepository {
   /// Подтягивает все платежи пользователя из Supabase (RLS уже ограничивает
   /// выборку его записями) и обновляет локальный кеш.
   Future<void> refresh() async {
-    final rows = await _client.from(SupabaseTables.payments).select();
+    final rows = await guardRepositoryCall(
+      () => _client.from(SupabaseTables.payments).select(),
+    );
     for (final row in List<Map<String, dynamic>>.from(rows)) {
       await _dao.upsert(_toCompanion(Payment.fromJson(row)));
     }
@@ -54,18 +58,21 @@ class PaymentRepository {
     double? consumption,
     required double calculatedAmount,
   }) async {
-    final row = await _client
-        .from(SupabaseTables.payments)
-        .insert({
-          'supplier_id': supplierId,
-          'period': formatDateOnly(period),
-          'reading_snapshot': readingSnapshot?.map((e) => e.toJson()).toList(),
-          'consumption': consumption,
-          'calculated_amount': calculatedAmount,
-          'status': PaymentStatus.pending.dbValue,
-        })
-        .select()
-        .single();
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.payments)
+          .insert({
+            'supplier_id': supplierId,
+            'period': formatDateOnly(period),
+            'reading_snapshot':
+                readingSnapshot?.map((e) => e.toJson()).toList(),
+            'consumption': consumption,
+            'calculated_amount': calculatedAmount,
+            'status': PaymentStatus.pending.dbValue,
+          })
+          .select()
+          .single(),
+    );
     final payment = Payment.fromJson(row);
     await _dao.upsert(_toCompanion(payment));
     return payment;
@@ -93,17 +100,19 @@ class PaymentRepository {
       calculatedAmount: cached.calculatedAmount,
       actualAmount: actualAmount,
     );
-    final row = await _client
-        .from(SupabaseTables.payments)
-        .update({
-          'actual_amount': actualAmount,
-          'bank': bank,
-          'payment_date': formatDateOnly(paymentDate),
-          'status': status.dbValue,
-        })
-        .eq('id', paymentId)
-        .select()
-        .single();
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.payments)
+          .update({
+            'actual_amount': actualAmount,
+            'bank': bank,
+            'payment_date': formatDateOnly(paymentDate),
+            'status': status.dbValue,
+          })
+          .eq('id', paymentId)
+          .select()
+          .single(),
+    );
     final updated = Payment.fromJson(row);
     await _dao.upsert(_toCompanion(updated));
     return updated;

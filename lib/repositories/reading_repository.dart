@@ -6,6 +6,7 @@ import '../database/daos/readings_dao.dart';
 import '../models/reading.dart';
 import '../services/supabase_tables.dart';
 import '../utils/json_parsing.dart';
+import 'repository_exceptions.dart';
 
 /// Показание больше предыдущего сохранённого по тому же каналу нельзя
 /// внести без явного флага `meterReplaced` (ТЗ §4.2). Сравнение — с
@@ -29,7 +30,8 @@ class MeterValueDecreasedException implements Exception {
 
 /// Показания счётчиков: чтение — из локального кеша (drift, реактивно),
 /// запись — сначала в Supabase, затем в кеш (см. журнал 3.5 — та же схема,
-/// что и в SupplierRepository).
+/// что и в SupplierRepository). Сетевые/серверные ошибки — через
+/// guardRepositoryCall (Этап 3.9).
 ///
 /// Правило «канал-источник должен иметь показание за период, прежде чем
 /// доступен ввод по производному каналу» (ТЗ §4.2) сюда не входит — оно
@@ -52,7 +54,9 @@ class ReadingRepository {
   /// Подтягивает все показания пользователя из Supabase (RLS уже
   /// ограничивает выборку его записями) и обновляет локальный кеш.
   Future<void> refresh() async {
-    final rows = await _client.from(SupabaseTables.readings).select();
+    final rows = await guardRepositoryCall(
+      () => _client.from(SupabaseTables.readings).select(),
+    );
     for (final row in List<Map<String, dynamic>>.from(rows)) {
       await _dao.upsert(_toCompanion(Reading.fromJson(row)));
     }
@@ -77,16 +81,18 @@ class ReadingRepository {
         throw MeterValueDecreasedException(previous.value, value);
       }
     }
-    final row = await _client
-        .from(SupabaseTables.readings)
-        .insert({
-          'channel_id': channelId,
-          'value': value,
-          'reading_date': formatDateOnly(readingDate),
-          'meter_replaced': meterReplaced,
-        })
-        .select()
-        .single();
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.readings)
+          .insert({
+            'channel_id': channelId,
+            'value': value,
+            'reading_date': formatDateOnly(readingDate),
+            'meter_replaced': meterReplaced,
+          })
+          .select()
+          .single(),
+    );
     final reading = Reading.fromJson(row);
     await _dao.upsert(_toCompanion(reading));
     return reading;

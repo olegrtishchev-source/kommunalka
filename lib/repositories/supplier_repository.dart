@@ -7,15 +7,16 @@ import '../database/app_database.dart';
 import '../database/daos/suppliers_dao.dart';
 import '../models/supplier.dart';
 import '../services/supabase_tables.dart';
+import 'repository_exceptions.dart';
 
 /// Поставщики: чтение — из локального кеша (drift, реактивно), запись —
 /// сначала в Supabase (источник истины, ТЗ §4.7 — создание требует сети),
 /// затем результат (с id/user_id/таймстемпами, сгенерированными на сервере)
 /// кладётся в локальный кеш тем же upsert, которым его обновляет [refresh].
 ///
-/// Обработка сетевых/серверных ошибок здесь намеренно не перехватывается —
-/// это отдельный пункт плана (Этап 3.9), как и разбор ошибок авторизации
-/// был оставлен экранам в AuthService (см. журнал 3.2).
+/// Сетевые/серверные ошибки переводятся в NetworkException/ServerException
+/// через guardRepositoryCall (Этап 3.9, lib/repositories/repository_exceptions.dart) —
+/// экраны (Этап 4) ловят эти два типа вместо разбора сырых исключений Supabase.
 class SupplierRepository {
   SupplierRepository(this._client, this._dao);
 
@@ -36,7 +37,9 @@ class SupplierRepository {
   /// и pull-to-refresh (ТЗ §4.7) — сам механизм вызова не здесь, это дело
   /// экранов/провайдеров Этапа 4.
   Future<void> refresh() async {
-    final rows = await _client.from(SupabaseTables.suppliers).select();
+    final rows = await guardRepositoryCall(
+      () => _client.from(SupabaseTables.suppliers).select(),
+    );
     for (final row in List<Map<String, dynamic>>.from(rows)) {
       await _dao.upsert(_toCompanion(Supplier.fromJson(row)));
     }
@@ -52,17 +55,19 @@ class SupplierRepository {
     BankDetails? bankDetails,
     String? paymentPurposeTemplate,
   }) async {
-    final row = await _client
-        .from(SupabaseTables.suppliers)
-        .insert({
-          'name': name,
-          'category': category,
-          'type': type.dbValue,
-          'bank_details': bankDetails?.toJson(),
-          'payment_purpose_template': paymentPurposeTemplate,
-        })
-        .select()
-        .single();
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.suppliers)
+          .insert({
+            'name': name,
+            'category': category,
+            'type': type.dbValue,
+            'bank_details': bankDetails?.toJson(),
+            'payment_purpose_template': paymentPurposeTemplate,
+          })
+          .select()
+          .single(),
+    );
     final supplier = Supplier.fromJson(row);
     await _dao.upsert(_toCompanion(supplier));
     return supplier;
@@ -72,18 +77,20 @@ class SupplierRepository {
   /// редактируемый — своей логики блокировки смены типа тут нет, это
   /// вопрос экрана редактирования (Этап 4), а не репозитория.
   Future<Supplier> update(Supplier supplier) async {
-    final row = await _client
-        .from(SupabaseTables.suppliers)
-        .update({
-          'name': supplier.name,
-          'category': supplier.category,
-          'type': supplier.type.dbValue,
-          'bank_details': supplier.bankDetails?.toJson(),
-          'payment_purpose_template': supplier.paymentPurposeTemplate,
-        })
-        .eq('id', supplier.id)
-        .select()
-        .single();
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.suppliers)
+          .update({
+            'name': supplier.name,
+            'category': supplier.category,
+            'type': supplier.type.dbValue,
+            'bank_details': supplier.bankDetails?.toJson(),
+            'payment_purpose_template': supplier.paymentPurposeTemplate,
+          })
+          .eq('id', supplier.id)
+          .select()
+          .single(),
+    );
     final updated = Supplier.fromJson(row);
     await _dao.upsert(_toCompanion(updated));
     return updated;
@@ -92,12 +99,14 @@ class SupplierRepository {
   /// Мягкое удаление (ТЗ §4.1): выставляет archived_at, запись и связанные
   /// показания/платежи не удаляются.
   Future<void> archive(String id) async {
-    final row = await _client
-        .from(SupabaseTables.suppliers)
-        .update({'archived_at': DateTime.now().toUtc().toIso8601String()})
-        .eq('id', id)
-        .select()
-        .single();
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.suppliers)
+          .update({'archived_at': DateTime.now().toUtc().toIso8601String()})
+          .eq('id', id)
+          .select()
+          .single(),
+    );
     await _dao.upsert(_toCompanion(Supplier.fromJson(row)));
   }
 
