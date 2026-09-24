@@ -24,6 +24,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  Future<PaymentRow?> getById(String id) {
+    return (select(payments)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+  }
+
   Future<PaymentRow?> getForSupplierAndPeriod(
     String supplierId,
     DateTime period,
