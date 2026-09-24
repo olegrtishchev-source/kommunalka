@@ -45,6 +45,9 @@ dependencies:
   flutter_riverpod: ^2.6.1
   go_router: ^15.1.2
 
+  # Сжатие фото чеков перед загрузкой в Supabase Storage — см. Этап 3.8 плана
+  image: ^4.5.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
