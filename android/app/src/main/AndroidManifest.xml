@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Нужно для сети в любом варианте сборки, включая release
+         (flutter build apk --release, ТЗ §6) — до Этапа 3.11 разрешение
+         на интернет было только в debug/profile-манифестах (добавляются
+         Flutter-шаблоном автоматически для инструментов разработки), в
+         release его не было бы вовсе, и Supabase-синхронизация молча не
+         работала бы в собранном apk. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="kommunalka"
         android:name="${applicationName}"
@@ -23,6 +31,21 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Перехватывает редирект OAuth-авторизации Яндекс.Диска
+             (Этап 3.11, пакет flutter_web_auth_2) — редирект вида
+             kommunalka://oauth2redirect#access_token=... открывается
+             системным браузером и попадает сюда, а не в браузер снова. -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="kommunalka"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

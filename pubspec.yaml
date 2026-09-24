@@ -51,6 +51,10 @@ dependencies:
   # Формирование Excel-отчёта — см. Этап 3.10 плана
   excel: ^4.0.6
 
+  # Загрузка отчёта на Яндекс.Диск — см. Этап 3.11 плана
+  http: ^1.6.0
+  flutter_web_auth_2: ^5.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
