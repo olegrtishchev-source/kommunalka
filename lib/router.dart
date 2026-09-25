@@ -6,18 +6,27 @@ import 'package:go_router/go_router.dart';
 
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/history/history_screen.dart';
 import 'screens/payment/payment_screen.dart';
 import 'screens/reading_entry/reading_entry_screen.dart';
+import 'screens/reports/reports_screen.dart';
+import 'screens/settings/settings_screen.dart';
+import 'screens/shell/main_shell_screen.dart';
 import 'screens/supplier_form/supplier_form_screen.dart';
 import 'screens/suppliers_list/suppliers_list_screen.dart';
 
-/// Маршруты go_router (полная схема — ТЗ, Этап 2.5 плана). Пока подключена
-/// только тончайшая сквозная связка Этапа 3.5 (MVP): /login, /suppliers,
-/// /suppliers/new, /suppliers/:id/reading, /suppliers/:id/payment/:paymentId.
-/// Остальные маршруты из схемы 2.5 — /register, /suppliers/:id (карточка),
-/// .../edit, /suppliers/:id/history, /history, /reports, /settings, а
-/// вместе с ними нижняя навигация (StatefulShellRoute на 4 раздела) —
-/// Этап 4: сейчас за ними стояли бы экраны-заглушки, а не функциональность.
+/// Маршруты go_router (полная схема — ТЗ, Этап 2.5 плана). С Этапа 4, п. 4.9
+/// — нижняя навигация на 4 раздела (StatefulShellRoute.indexedStack):
+/// Поставщики / История / Отчёты / Настройки, каждый со своим стеком и
+/// сохраняемым состоянием при переключении вкладок (см. MainShellScreen).
+/// Ветка «История»/«Отчёты»/«Настройки» пока ведёт на экран-заглушку —
+/// содержимое появится на соответствующих пунктах плана (4.6/4.7, 4.10,
+/// 4.8). Внутри ветки «Поставщики» вложены формы (new/reading/payment) —
+/// у них общий с корнем стек навигации, поэтому нижняя панель остаётся
+/// видимой и на них (минимальный вариант, без отдельного полноэкранного
+/// ShellRoute — пересмотрим, если на практике будет визуально мешать).
+/// /register, /suppliers/:id (карточка поставщика), .../edit,
+/// /suppliers/:id/history — остальные пункты Этапа 4 (4.1, 4.2, 4.6).
 final routerProvider = Provider<GoRouter>((ref) {
   final authService = ref.watch(authServiceProvider);
 
@@ -36,26 +45,62 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
-      GoRoute(
-        path: '/suppliers',
-        builder: (context, state) => const SuppliersListScreen(),
-      ),
-      GoRoute(
-        path: '/suppliers/new',
-        builder: (context, state) => const SupplierFormScreen(),
-      ),
-      GoRoute(
-        path: '/suppliers/:id/reading',
-        builder: (context, state) => ReadingEntryScreen(
-          supplierId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/suppliers/:id/payment/:paymentId',
-        builder: (context, state) => PaymentScreen(
-          supplierId: state.pathParameters['id']!,
-          paymentId: state.pathParameters['paymentId']!,
-        ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShellScreen(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/suppliers',
+                builder: (context, state) => const SuppliersListScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'new',
+                    builder: (context, state) => const SupplierFormScreen(),
+                  ),
+                  GoRoute(
+                    path: ':id/reading',
+                    builder: (context, state) => ReadingEntryScreen(
+                      supplierId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id/payment/:paymentId',
+                    builder: (context, state) => PaymentScreen(
+                      supplierId: state.pathParameters['id']!,
+                      paymentId: state.pathParameters['paymentId']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/history',
+                builder: (context, state) => const HistoryScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/reports',
+                builder: (context, state) => const ReportsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/settings',
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );
