@@ -12,6 +12,7 @@ import 'screens/reading_entry/reading_entry_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/shell/main_shell_screen.dart';
+import 'screens/supplier_card/supplier_card_screen.dart';
 import 'screens/supplier_form/supplier_form_screen.dart';
 import 'screens/suppliers_list/suppliers_list_screen.dart';
 
@@ -21,12 +22,13 @@ import 'screens/suppliers_list/suppliers_list_screen.dart';
 /// сохраняемым состоянием при переключении вкладок (см. MainShellScreen).
 /// Ветка «История»/«Отчёты»/«Настройки» пока ведёт на экран-заглушку —
 /// содержимое появится на соответствующих пунктах плана (4.6/4.7, 4.10,
-/// 4.8). Внутри ветки «Поставщики» вложены формы (new/reading/payment) —
-/// у них общий с корнем стек навигации, поэтому нижняя панель остаётся
-/// видимой и на них (минимальный вариант, без отдельного полноэкранного
-/// ShellRoute — пересмотрим, если на практике будет визуально мешать).
-/// /register, /suppliers/:id (карточка поставщика), .../edit,
-/// /suppliers/:id/history — остальные пункты Этапа 4 (4.1, 4.2, 4.6).
+/// 4.8). Внутри ветки «Поставщики» вложены :id (карточка поставщика, 4.1)
+/// и формы (new/reading/payment) — у них общий с корнем стек навигации,
+/// поэтому нижняя панель остаётся видимой и на них (минимальный вариант,
+/// без отдельного полноэкранного ShellRoute — пересмотрим, если на
+/// практике будет визуально мешать).
+/// /register, /suppliers/:id/edit, /suppliers/:id/history — остальные
+/// пункты Этапа 4 (4.2, 4.6).
 final routerProvider = Provider<GoRouter>((ref) {
   final authService = ref.watch(authServiceProvider);
 
@@ -58,6 +60,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'new',
                     builder: (context, state) => const SupplierFormScreen(),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) => SupplierCardScreen(
+                      supplierId: state.pathParameters['id']!,
+                    ),
                   ),
                   GoRoute(
                     path: ':id/reading',
