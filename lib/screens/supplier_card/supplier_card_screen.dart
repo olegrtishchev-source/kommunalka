@@ -28,10 +28,8 @@ import '../../utils/supplier_category_icon.dart';
 /// добавится при прохождении соответствующего пункта плана; сейчас её
 /// тут нет, чтобы не делать неработающую кнопку.
 ///
-/// Для типа without_readings кнопка ввода временно заменена пояснением —
-/// ввод суммы вручную для безсчётчиковых поставщиков относится к п. 4.3,
-/// ещё не реализован (ReadingEntryScreen сейчас рассчитан только на
-/// with_readings, см. её doc-комментарий).
+/// Для without_readings кнопка ведёт на тот же ReadingEntryScreen — там
+/// с 4.3 есть отдельная ветка «ввести сумму вручную» вместо показания.
 class SupplierCardScreen extends ConsumerStatefulWidget {
   const SupplierCardScreen({super.key, required this.supplierId});
 
@@ -162,17 +160,13 @@ class _SupplierCardScreenState extends ConsumerState<SupplierCardScreen> {
                     if (isWithReadings)
                       _ChannelsList(supplierId: widget.supplierId, channelRepo: channelRepo)
                     else
-                      const Text(
-                        'Сумма к оплате вводится вручную каждый период — '
-                        'экран появится на Этапе 4, п. 4.3.',
-                      ),
+                      const Text('Сумма к оплате вводится вручную каждый период (ТЗ §4.3).'),
                     const SizedBox(height: 24),
-                    if (isWithReadings)
-                      FilledButton.icon(
-                        onPressed: () => _openReadingOrPayment(context),
-                        icon: const Icon(Icons.arrow_forward),
-                        label: const Text('Внести показания'),
-                      ),
+                    FilledButton.icon(
+                      onPressed: () => _openReadingOrPayment(context),
+                      icon: const Icon(Icons.arrow_forward),
+                      label: Text(isWithReadings ? 'Внести показания' : 'Внести сумму'),
+                    ),
                   ],
                 ),
         );
