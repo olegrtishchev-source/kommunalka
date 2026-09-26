@@ -27,8 +27,9 @@ import 'screens/suppliers_list/suppliers_list_screen.dart';
 /// поэтому нижняя панель остаётся видимой и на них (минимальный вариант,
 /// без отдельного полноэкранного ShellRoute — пересмотрим, если на
 /// практике будет визуально мешать).
-/// /register, /suppliers/:id/edit, /suppliers/:id/history — остальные
-/// пункты Этапа 4 (4.2, 4.6).
+/// :id/edit тоже вложен (4.2, тот же SupplierFormScreen — режим решается
+/// тем, передан ли supplierId). /register, /suppliers/:id/history —
+/// остальные пункты Этапа 4 (4.6).
 final routerProvider = Provider<GoRouter>((ref) {
   final authService = ref.watch(authServiceProvider);
 
@@ -65,6 +66,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: ':id',
                     builder: (context, state) => SupplierCardScreen(
                       supplierId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id/edit',
+                    builder: (context, state) => SupplierFormScreen(
+                      supplierId: state.pathParameters['id'],
                     ),
                   ),
                   GoRoute(

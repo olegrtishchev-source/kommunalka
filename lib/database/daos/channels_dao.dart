@@ -15,6 +15,11 @@ class ChannelsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// Все каналы пользователя — для выбора канала-источника у производного
+  /// канала (ТЗ §4.1: источник может быть у другого поставщика, поэтому
+  /// нужна выборка не по одному supplierId, а по всем сразу).
+  Stream<List<ChannelRow>> watchAll() => select(channels).watch();
+
   Future<ChannelRow?> getById(String id) {
     return (select(channels)..where((t) => t.id.equals(id)))
         .getSingleOrNull();

@@ -23,9 +23,10 @@ import '../../utils/supplier_category_icon.dart';
 /// прямо в списке поставщиков (журнал 3.5.4), теперь на своём месте по
 /// схеме навигации.
 ///
-/// Редактирование поставщика (4.2) и история платежей по нему (4.6) —
-/// сюда же добавятся при прохождении соответствующих пунктов плана; сейчас
-/// их тут нет, чтобы не делать неработающие кнопки.
+/// Кнопка «Редактировать» в AppBar ведёт на SupplierFormScreen в режиме
+/// редактирования (4.2). История платежей по поставщику (4.6) — сюда же
+/// добавится при прохождении соответствующего пункта плана; сейчас её
+/// тут нет, чтобы не делать неработающую кнопку.
 ///
 /// Для типа without_readings кнопка ввода временно заменена пояснением —
 /// ввод суммы вручную для безсчётчиковых поставщиков относится к п. 4.3,
@@ -98,7 +99,17 @@ class _SupplierCardScreenState extends ConsumerState<SupplierCardScreen> {
         final isWithReadings = supplier?.type == SupplierType.withReadings.dbValue;
 
         return Scaffold(
-          appBar: AppBar(title: Text(supplier?.name ?? 'Поставщик')),
+          appBar: AppBar(
+            title: Text(supplier?.name ?? 'Поставщик'),
+            actions: [
+              if (supplier != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Редактировать',
+                  onPressed: () => context.push('/suppliers/${widget.supplierId}/edit'),
+                ),
+            ],
+          ),
           body: supplier == null
               ? const Center(child: CircularProgressIndicator())
               : ListView(

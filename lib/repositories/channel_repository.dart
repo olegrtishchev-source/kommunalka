@@ -39,6 +39,10 @@ class ChannelRepository {
   Stream<List<ChannelRow>> watchForSupplier(String supplierId) =>
       _dao.watchForSupplier(supplierId);
 
+  /// Все каналы пользователя — источник для выбора канала-источника у
+  /// производного канала (ТЗ §4.1), может принадлежать другому поставщику.
+  Stream<List<ChannelRow>> watchAll() => _dao.watchAll();
+
   Future<ChannelRow?> getById(String id) => _dao.getById(id);
 
   /// Подтягивает все каналы пользователя из Supabase (RLS уже ограничивает
