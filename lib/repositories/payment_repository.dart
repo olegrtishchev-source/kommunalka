@@ -78,16 +78,24 @@ class PaymentRepository {
     return payment;
   }
 
-  /// Шаг «оплата» (ТЗ §4.4): вносит факт-сумму и банк, статус пересчитывается
+  /// Шаг «оплата» (ТЗ §4.4): вносит факт-сумму и дату, статус пересчитывается
   /// автоматически по соотношению факта и расчётной суммы
   /// (PaymentStatus.calculate) — не передаётся снаружи, чтобы не завести
   /// рассинхронизацию между суммой и статусом. Тот же метод используется
-  /// и для последующей корректировки факт-суммы/банка/даты (ТЗ §4.4:
-  /// «можно откорректировать позже»), отдельного метода под это не заводим.
+  /// и для последующей корректировки факт-суммы/даты (ТЗ §4.4: «можно
+  /// откорректировать позже»), отдельного метода под это не заводим.
+  ///
+  /// [period] — необязательная корректировка периода платежа прямо на
+  /// экране оплаты (ТЗ §4.3: «на экране оплаты его можно скорректировать
+  /// вручную»); null — период не трогаем. Смена на период, для которого у
+  /// поставщика уже есть другой платёж, упрётся в unique(supplier_id,
+  /// period) на стороне Supabase — тот же принцип, что и везде: клиент не
+  /// дублирует проверку, конфликт всплывёт как ServerException.
   Future<Payment> recordPayment({
     required String paymentId,
     required double actualAmount,
     required DateTime paymentDate,
+    DateTime? period,
   }) async {
     final cached = await _dao.getById(paymentId);
     if (cached == null) {
@@ -99,14 +107,18 @@ class PaymentRepository {
       calculatedAmount: cached.calculatedAmount,
       actualAmount: actualAmount,
     );
+    final update = <String, dynamic>{
+      'actual_amount': actualAmount,
+      'payment_date': formatDateOnly(paymentDate),
+      'status': status.dbValue,
+    };
+    if (period != null) {
+      update['period'] = formatDateOnly(period);
+    }
     final row = await guardRepositoryCall(
       () => _client
           .from(SupabaseTables.payments)
-          .update({
-            'actual_amount': actualAmount,
-            'payment_date': formatDateOnly(paymentDate),
-            'status': status.dbValue,
-          })
+          .update(update)
           .eq('id', paymentId)
           .select()
           .single(),

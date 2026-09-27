@@ -1,25 +1,30 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../database/app_database.dart';
 import '../../models/payment.dart';
+import '../../models/supplier.dart';
 import '../../providers/payment_provider.dart';
+import '../../providers/supplier_provider.dart';
+import '../../utils/bank_details_format.dart';
 
-/// Оплата (ТЗ §4.4, схема 2.5, сценарий 3). Минимальная версия для
-/// Этапа 3.5: факт-сумма, дата — без реквизитов поставщика (обычно видны
-/// с карточки /suppliers/:id — Этап 4) и без перехода на прикрепление
-/// чека («по желанию», не входит в тончайшую связку).
+/// Оплата (ТЗ §4.4, схема 2.5, сценарий 3): расчётная сумма, реквизиты
+/// поставщика с копированием, напоминание, что оплата идёт через
+/// банковское приложение пользователя (само приложение деньги не
+/// переводит), факт-сумма, дата оплаты, редактируемый период (ТЗ §4.3 —
+/// корректировка периода именно здесь, а не на экране показания).
 ///
-/// Поля «Банк» больше нет (убрано из модели/схемы/отчёта по ходу
-/// практической проверки 3.5.4) — банк, через который прошла оплата,
-/// не фиксируется отдельным полем, эта информация остаётся на самом
-/// чеке (ТЗ §4.5), который прикрепляется отдельно.
+/// Прикрепление чека («по желанию», ТЗ §4.4–4.5) сюда пока не добавлено —
+/// самого экрана прикрепления ещё нет (п. 4.5), появится вместе с ним,
+/// чтобы кнопка не вела в никуда.
 ///
-/// Формально не входит в дословный список пунктов 3.5.1–3.5.5, но без
-/// него «Далее» на экране показания создавал бы Payment без единого
-/// способа его увидеть или довести до оплаты — сквозная связка
-/// (сценарий 2.5) была бы не по-настоящему сквозной.
+/// Поля «Банк» нет (убрано из модели/схемы/отчёта на 3.5.4) — банк, через
+/// который прошла оплата, виден на самом чеке (ТЗ §4.5), отдельно не
+/// фиксируется.
 class PaymentScreen extends ConsumerStatefulWidget {
   const PaymentScreen({super.key, required this.supplierId, required this.paymentId});
 
@@ -34,11 +39,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   DateTime _paymentDate = DateTime.now();
+  DateTime _period = DateTime.now();
 
   bool _loading = true;
   bool _submitting = false;
   String? _error;
   PaymentRow? _payment;
+  SupplierRow? _supplier;
 
   @override
   void initState() {
@@ -54,12 +61,17 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   Future<void> _load() async {
     try {
-      final repo = ref.read(paymentRepositoryProvider);
-      await repo.refresh();
-      final payment = await repo.getById(widget.paymentId);
+      final paymentRepo = ref.read(paymentRepositoryProvider);
+      final supplierRepo = ref.read(supplierRepositoryProvider);
+      await paymentRepo.refresh();
+      await supplierRepo.refresh();
+      final payment = await paymentRepo.getById(widget.paymentId);
+      final supplier = await supplierRepo.getById(widget.supplierId);
       setState(() {
         _payment = payment;
+        _supplier = supplier;
         _amountController.text = payment?.calculatedAmount.toString() ?? '';
+        if (payment != null) _period = payment.period;
         _loading = false;
       });
     } catch (e) {
@@ -70,6 +82,27 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     }
   }
 
+  Future<void> _pickPeriod() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _period,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      helpText: 'Выберите любой день нужного месяца',
+    );
+    if (picked != null) {
+      setState(() => _period = DateTime(picked.year, picked.month, 1));
+    }
+  }
+
+  Future<void> _copyBankDetails(BankDetails details) async {
+    await Clipboard.setData(ClipboardData(text: formatBankDetails(details)));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Реквизиты скопированы')),
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -78,10 +111,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     });
     try {
       final amount = double.parse(_amountController.text.replaceAll(',', '.'));
+      final original = _payment!.period;
+      final periodChanged = _period.year != original.year || _period.month != original.month;
       final updated = await ref.read(paymentRepositoryProvider).recordPayment(
             paymentId: widget.paymentId,
             actualAmount: amount,
             paymentDate: _paymentDate,
+            period: periodChanged ? _period : null,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,13 +144,20 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bankDetailsJson = _supplier?.bankDetails;
+    final bankDetails = bankDetailsJson == null
+        ? null
+        : BankDetails.fromJson(
+            Map<String, dynamic>.from(jsonDecode(bankDetailsJson) as Map),
+          );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Оплата')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _payment == null
               ? Center(child: Text('Платёж не найден. ${_error ?? ''}'))
-              : Padding(
+              : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Form(
                     key: _formKey,
@@ -125,7 +168,36 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                           'Расчётная сумма: '
                           '${_payment!.calculatedAmount.toStringAsFixed(2)} ₽',
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Оплата выполняется через ваше банковское приложение — '
+                          'это приложение деньги само не переводит.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        if (bankDetails != null) ...[
+                          const SizedBox(height: 16),
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(formatBankDetails(bankDetails)),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () => _copyBankDetails(bankDetails),
+                                      icon: const Icon(Icons.copy, size: 18),
+                                      label: const Text('Скопировать'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
                         TextFormField(
                           controller: _amountController,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -157,6 +229,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                               },
                               child: const Text('Изменить'),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text('Период: ${_period.month}.${_period.year}'),
+                            TextButton(onPressed: _pickPeriod, child: const Text('Изменить')),
                           ],
                         ),
                         const SizedBox(height: 20),

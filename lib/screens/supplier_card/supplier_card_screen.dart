@@ -11,6 +11,7 @@ import '../../providers/channel_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/channel_repository.dart';
+import '../../utils/bank_details_format.dart';
 import '../../utils/supplier_category_icon.dart';
 
 /// Карточка поставщика (схема §2.5: /suppliers/:id) — промежуточный экран
@@ -64,7 +65,7 @@ class _SupplierCardScreenState extends ConsumerState<SupplierCardScreen> {
   }
 
   Future<void> _copyBankDetails(BuildContext context, BankDetails details) async {
-    await Clipboard.setData(ClipboardData(text: _formatBankDetails(details)));
+    await Clipboard.setData(ClipboardData(text: formatBankDetails(details)));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Реквизиты скопированы')),
@@ -141,7 +142,7 @@ class _SupplierCardScreenState extends ConsumerState<SupplierCardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_formatBankDetails(bankDetails)),
+                              Text(formatBankDetails(bankDetails)),
                               const SizedBox(height: 8),
                               Align(
                                 alignment: Alignment.centerRight,
@@ -173,17 +174,6 @@ class _SupplierCardScreenState extends ConsumerState<SupplierCardScreen> {
       },
     );
   }
-}
-
-String _formatBankDetails(BankDetails details) {
-  final lines = <String>[
-    if (details.recipient != null) 'Получатель: ${details.recipient}',
-    if (details.inn != null) 'ИНН: ${details.inn}',
-    if (details.kpp != null) 'КПП: ${details.kpp}',
-    if (details.bik != null) 'БИК: ${details.bik}',
-    if (details.accountNumber != null) 'Счёт: ${details.accountNumber}',
-  ];
-  return lines.join('\n');
 }
 
 class _ChannelsList extends StatelessWidget {
