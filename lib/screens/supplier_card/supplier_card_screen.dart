@@ -25,9 +25,8 @@ import '../../utils/supplier_category_icon.dart';
 /// схеме навигации.
 ///
 /// Кнопка «Редактировать» в AppBar ведёт на SupplierFormScreen в режиме
-/// редактирования (4.2). История платежей по поставщику (4.6) — сюда же
-/// добавится при прохождении соответствующего пункта плана; сейчас её
-/// тут нет, чтобы не делать неработающую кнопку.
+/// редактирования (4.2). Кнопка «История» в AppBar ведёт на
+/// SupplierHistoryScreen (4.6, /suppliers/:id/history).
 ///
 /// Для without_readings кнопка ведёт на тот же ReadingEntryScreen — там
 /// с 4.3 есть отдельная ветка «ввести сумму вручную» вместо показания.
@@ -101,12 +100,18 @@ class _SupplierCardScreenState extends ConsumerState<SupplierCardScreen> {
           appBar: AppBar(
             title: Text(supplier?.name ?? 'Поставщик'),
             actions: [
-              if (supplier != null)
+              if (supplier != null) ...[
+                IconButton(
+                  icon: const Icon(Icons.history),
+                  tooltip: 'История платежей',
+                  onPressed: () => context.push('/suppliers/${widget.supplierId}/history'),
+                ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   tooltip: 'Редактировать',
                   onPressed: () => context.push('/suppliers/${widget.supplierId}/edit'),
                 ),
+              ],
             ],
           ),
           body: supplier == null

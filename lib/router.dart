@@ -8,6 +8,7 @@ import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/history/history_screen.dart';
 import 'screens/payment/payment_screen.dart';
+import 'screens/history/supplier_history_screen.dart';
 import 'screens/reading_entry/reading_entry_screen.dart';
 import 'screens/receipt/receipt_screen.dart';
 import 'screens/reports/reports_screen.dart';
@@ -31,8 +32,10 @@ import 'screens/suppliers_list/suppliers_list_screen.dart';
 /// :id/edit тоже вложен (4.2, тот же SupplierFormScreen — режим решается
 /// тем, передан ли supplierId). /payments/:paymentId/receipt — экран прикрепления чека (4.5), отдельный
 /// маршрут верхнего уровня (как в схеме §2.5), а не вложенный в «Поставщики»:
-/// на него ведут и из оплаты, и позже из истории (4.6/4.7). /register,
-/// /suppliers/:id/history — остальные пункты Этапа 4 (4.6).
+/// на него ведут и из оплаты, и из истории по поставщику (4.6).
+/// :id/history — история платежей по поставщику (4.6), общая история по
+/// всем поставщикам с фильтрами — /history (4.7). /register — остальные
+/// пункты Этапа 4.
 final routerProvider = Provider<GoRouter>((ref) {
   final authService = ref.watch(authServiceProvider);
 
@@ -81,6 +84,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: ':id/edit',
                     builder: (context, state) => SupplierFormScreen(
                       supplierId: state.pathParameters['id'],
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id/history',
+                    builder: (context, state) => SupplierHistoryScreen(
+                      supplierId: state.pathParameters['id']!,
                     ),
                   ),
                   GoRoute(

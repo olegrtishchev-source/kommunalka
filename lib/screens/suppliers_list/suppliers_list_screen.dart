@@ -7,6 +7,7 @@ import '../../models/payment.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/payment_repository.dart';
+import '../../utils/payment_status_format.dart';
 import '../../utils/supplier_category_icon.dart';
 
 /// Список поставщиков — главный экран приложения (ТЗ §4.1, §4.9 — теперь
@@ -162,11 +163,7 @@ class _CurrentPeriodBadge extends StatelessWidget {
           );
         }
         final status = PaymentStatus.fromDb(current.status);
-        final (label, color) = switch (status) {
-          PaymentStatus.pending => ('ожидает', Colors.orange),
-          PaymentStatus.partiallyPaid => ('частично', Colors.amber),
-          PaymentStatus.paid => ('оплачено', Colors.green),
-        };
+        final (label, color) = paymentStatusLabelAndColor(status);
         return Chip(
           label: Text(label),
           visualDensity: VisualDensity.compact,
