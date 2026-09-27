@@ -18,9 +18,9 @@ import '../../utils/bank_details_format.dart';
 /// переводит), факт-сумма, дата оплаты, редактируемый период (ТЗ §4.3 —
 /// корректировка периода именно здесь, а не на экране показания).
 ///
-/// Прикрепление чека («по желанию», ТЗ §4.4–4.5) сюда пока не добавлено —
-/// самого экрана прикрепления ещё нет (п. 4.5), появится вместе с ним,
-/// чтобы кнопка не вела в никуда.
+/// Прикрепление чека («по желанию», ТЗ §4.4–4.5) — кнопка ниже ведёт на
+/// отдельный экран ReceiptScreen (4.5, /payments/:paymentId/receipt);
+/// доступна независимо от сохранения факт-суммы.
 ///
 /// Поля «Банк» нет (убрано из модели/схемы/отчёта на 3.5.4) — банк, через
 /// который прошла оплата, виден на самом чеке (ТЗ §4.5), отдельно не
@@ -237,6 +237,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                             Text('Период: ${_period.month}.${_period.year}'),
                             TextButton(onPressed: _pickPeriod, child: const Text('Изменить')),
                           ],
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push('/payments/${widget.paymentId}/receipt'),
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: const Text('Прикрепить чек'),
                         ),
                         const SizedBox(height: 20),
                         if (_error != null) ...[

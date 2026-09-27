@@ -9,6 +9,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/history/history_screen.dart';
 import 'screens/payment/payment_screen.dart';
 import 'screens/reading_entry/reading_entry_screen.dart';
+import 'screens/receipt/receipt_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/shell/main_shell_screen.dart';
@@ -28,8 +29,10 @@ import 'screens/suppliers_list/suppliers_list_screen.dart';
 /// без отдельного полноэкранного ShellRoute — пересмотрим, если на
 /// практике будет визуально мешать).
 /// :id/edit тоже вложен (4.2, тот же SupplierFormScreen — режим решается
-/// тем, передан ли supplierId). /register, /suppliers/:id/history —
-/// остальные пункты Этапа 4 (4.6).
+/// тем, передан ли supplierId). /payments/:paymentId/receipt — экран прикрепления чека (4.5), отдельный
+/// маршрут верхнего уровня (как в схеме §2.5), а не вложенный в «Поставщики»:
+/// на него ведут и из оплаты, и позже из истории (4.6/4.7). /register,
+/// /suppliers/:id/history — остальные пункты Этапа 4 (4.6).
 final routerProvider = Provider<GoRouter>((ref) {
   final authService = ref.watch(authServiceProvider);
 
@@ -47,6 +50,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/payments/:paymentId/receipt',
+        builder: (context, state) => ReceiptScreen(
+          paymentId: state.pathParameters['paymentId']!,
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
