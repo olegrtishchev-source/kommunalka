@@ -29,4 +29,17 @@ class SettingsService {
   String get dateFormat => _prefs.getString(_dateFormatKey) ?? defaultDateFormat;
 
   Future<void> setDateFormat(String value) => _prefs.setString(_dateFormatKey, value);
+
+  static const _yandexTokenKey = 'settings_yandex_access_token';
+
+  /// access_token Яндекс.Диска (ТЗ §4.10) — экран «Отчёты» получает его
+  /// через YandexDiskService.authorize() (Этап 3.11) и хранит здесь же,
+  /// вместе с остальными настройками приложения; сам сервис токен не
+  /// хранит (см. его doc-комментарий).
+  String? get yandexAccessToken => _prefs.getString(_yandexTokenKey);
+
+  Future<void> setYandexAccessToken(String value) =>
+      _prefs.setString(_yandexTokenKey, value);
+
+  Future<void> clearYandexAccessToken() => _prefs.remove(_yandexTokenKey);
 }
