@@ -24,6 +24,17 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 4;
 
+  /// Очистка локального кеша с последующей повторной загрузкой из облака
+  /// (ТЗ §4.8, экран «Настройки») — сама повторная загрузка (refresh() у
+  /// всех репозиториев) не здесь, это дело экрана, у AppDatabase нет
+  /// доступа к репозиториям/Supabase. Удаляются только строки, не сами
+  /// таблицы — в отличие от deleteTable в onUpgrade ниже, схема не трогается.
+  Future<void> clearCache() async {
+    for (final table in allTables) {
+      await customStatement('DELETE FROM ${table.actualTableName}');
+    }
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
