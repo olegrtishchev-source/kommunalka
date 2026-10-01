@@ -136,6 +136,39 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
+  /// Подтверждение «Закрытия месяца» (п. 5.7): если по части активных
+  /// поставщиков за период нет платежа, показать их список и спросить,
+  /// формировать ли отчёт без них. true — продолжить, false — отмена.
+  Future<bool?> _confirmCloseMonth(List<String> missingNames) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Не все поставщики оплачены'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('За выбранный период нет платежа по поставщикам:'),
+            const SizedBox(height: 8),
+            ...missingNames.map((name) => Text('• $name')),
+            const SizedBox(height: 8),
+            const Text('Сформировать отчёт без них?'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Продолжить'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _generateAndUpload() async {
     final token = _yandexToken;
     if (token == null) return;
@@ -159,6 +192,20 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final periodPayments = allPayments
           .where((p) => p.period.year == _period.year && p.period.month == _period.month)
           .toList();
+
+      // «Закрытие месяца» (п. 5.7): проверка, что по всем активным
+      // поставщикам за период есть платёж. Если есть «дыры» — показать
+      // список и дать выбор (сформировать без них или отменить).
+      final activeSuppliers = await supplierRepo.watchActive().first;
+      final missing = activeSuppliers
+          .where((s) => !periodPayments.any((p) => p.supplierId == s.id))
+          .toList();
+      if (missing.isNotEmpty) {
+        final proceed = await _confirmCloseMonth(
+          missing.map((s) => s.name).toList(),
+        );
+        if (proceed != true) return;
+      }
 
       final rows = <ExcelReportRow>[];
       for (final paymentRow in periodPayments) {
