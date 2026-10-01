@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../database/app_database.dart';
 import '../models/payment.dart';
 import '../repositories/receipt_repository.dart';
+import '../utils/date_format.dart';
 import '../utils/payment_status_format.dart';
 
 /// Карточка одного платежа в истории — общая для «Истории по поставщику»
@@ -51,8 +52,8 @@ class PaymentHistoryCard extends StatelessWidget {
               children: [
                 Text(
                   supplierName != null
-                      ? '$supplierName — ${payment.period.month}.${payment.period.year}'
-                      : '${payment.period.month}.${payment.period.year}',
+                      ? '$supplierName — ${formatPeriod(payment.period)}'
+                      : formatPeriod(payment.period),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const Spacer(),
@@ -82,8 +83,7 @@ class PaymentHistoryCard extends StatelessWidget {
             ),
             if (payment.paymentDate != null)
               Text(
-                'Дата оплаты: ${payment.paymentDate!.day}.${payment.paymentDate!.month}.'
-                '${payment.paymentDate!.year}',
+                'Дата оплаты: ${formatDate(payment.paymentDate!)}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             const SizedBox(height: 4),

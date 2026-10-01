@@ -14,6 +14,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../providers/yandex_disk_provider.dart';
 import '../../services/excel_report_service.dart';
+import '../../utils/date_format.dart';
 
 /// Отчёты (ТЗ §4.10) — вкладка «Отчёты» нижней навигации (4.9). Выбор
 /// периода, статус авторизации Яндекс.Диска, кнопка «Сформировать и
@@ -221,7 +222,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Text('${_period.month}.${_period.year}'),
+                Text(formatPeriod(_period)),
                 TextButton(onPressed: _pickPeriod, child: const Text('Изменить')),
               ],
             ),

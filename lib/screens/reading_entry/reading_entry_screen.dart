@@ -11,6 +11,7 @@ import '../../providers/channel_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/reading_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../utils/date_format.dart';
 
 /// Ввод показаний (with_readings) или суммы к оплате (without_readings) —
 /// ТЗ §4.2–4.3, схема §2.5, сценарий 2: «Далее» создаёт Payment и
@@ -36,14 +37,18 @@ import '../../providers/supplier_provider.dart';
 /// показания за период (ТЗ §4.2: «ввод временно недоступен»): здесь это
 /// не блокирует ввод, а просто исключает канал из суммы с тем же
 /// предупреждением. Если пропущены вообще все каналы — платёж не
-/// создаётся вовсе (как в прежнем однока��альном MVP).
+/// создаётся вовсе (как в прежнем одноканальном MVP).
 ///
-/// Не входит в этот пункт: флаг meter_replaced в UI (checkbox) — отдельный
-/// п. 5.2, следующим шагом; ReadingRepository.create уже поддерживает
-/// параметр, здесь просто не передаётся (по умолчанию false), ошибка
-/// понижения показания всплывает как текст, как и раньше. Многоуровневая
-/// производность (канал-источник сам производный) не рассматривается —
-/// в ТЗ описан только один уровень.
+/// Валидация и замена счётчика (п. 5.2, ТЗ §4.2): показание не может быть
+/// меньше предыдущего, пока пользователь явно не отметил флажок «Счётчик
+/// заменён» у этого канала — ошибка видна под полем сразу при вводе, а
+/// «Далее» такую запись не пропускает. С флажком расход считается как
+/// новое показание (новый счётчик стартует с нуля — вариант А, решение
+/// Олега), в reading_snapshot попадает previous_value = 0, а в Reading —
+/// meter_replaced = true. Флажок показывается только там, где есть
+/// предыдущее показание (для первого показания снимать нечего).
+/// Многоуровневая производность (канал-источник сам производный) не
+/// рассматривается — в ТЗ описан только один уровень.
 ///
 /// without_readings — без изменений на этом пункте: сумма к оплате
 /// вводится вручную, период редактируется отдельным полем, Payment без
@@ -73,6 +78,9 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
   final Map<String, ReadingRow?> _previous = {};
   final Map<String, ChannelRow?> _sourceChannel = {};
   final Map<String, ReadingSnapshotEntry?> _derivedEntry = {};
+
+  /// Отмеченные пользователем флажки «Счётчик заменён» по каналам (п. 5.2).
+  final Map<String, bool> _replaced = {};
 
   bool get _isWithoutReadings =>
       _supplier != null && SupplierType.fromDb(_supplier!.type) == SupplierType.withoutReadings;
@@ -208,20 +216,35 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
     }
   }
 
+  /// Отмечен ли флажок «Счётчик заменён» у канала. Без предыдущего
+  /// показания флаг не имеет смысла (первое показание) и всегда false.
+  bool _isReplaced(String channelId) =>
+      _previous[channelId] != null && (_replaced[channelId] ?? false);
+
+  /// Предыдущее значение для расчёта: при замене счётчика новый счётчик
+  /// считается стартовавшим с нуля (вариант А, п. 5.2), иначе — последнее
+  /// сохранённое показание.
+  double _effectivePrevious(String channelId) =>
+      _isReplaced(channelId) ? 0 : _previous[channelId]!.value;
+
   /// Строка предпросмотра по каналу — только для тех, где уже есть все
   /// данные для расчёта (ТЗ §4.3: показывать предпросмотр до создания
-  /// платежа).
+  /// платежа). Если показание понижено без флага замены — предпросмотра
+  /// нет (вместо него под полем показывается ошибка валидации).
   ({double amount, String line})? _previewFor(ChannelRow channel) {
     if (channel.sourceChannelId == null) {
       final text = _valueControllers[channel.id]?.text.trim() ?? '';
       final value = double.tryParse(text.replaceAll(',', '.'));
       final previous = _previous[channel.id];
       if (value == null || previous == null) return null;
-      final consumption = value - previous.value;
+      final replaced = _isReplaced(channel.id);
+      if (!replaced && value < previous.value) return null;
+      final consumption = value - _effectivePrevious(channel.id);
       final amount = consumption * channel.tariff;
+      final note = replaced ? ' (счётчик заменён)' : '';
       return (
         amount: amount,
-        line: '${channel.name}: $consumption ${channel.unit} × ${channel.tariff} ₽ '
+        line: '${channel.name}$note: $consumption ${channel.unit} × ${channel.tariff} ₽ '
             '= ${amount.toStringAsFixed(2)} ₽',
       );
     }
@@ -244,12 +267,14 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
     for (final channel in _channels) {
       if (channel.sourceChannelId == null) {
         final value = double.parse(_valueControllers[channel.id]!.text.replaceAll(',', '.'));
+        final previous = _previous[channel.id];
+        final replaced = _isReplaced(channel.id);
         await readingRepo.create(
           channelId: channel.id,
           value: value,
           readingDate: _readingDate,
+          meterReplaced: replaced,
         );
-        final previous = _previous[channel.id];
         if (previous == null) {
           skipped.add('${channel.name} (первое показание)');
           continue;
@@ -259,7 +284,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
             channelId: channel.id,
             channelName: channel.name,
             unit: channel.unit,
-            previousValue: previous.value,
+            previousValue: _effectivePrevious(channel.id),
             currentValue: value,
             tariff: channel.tariff,
             readingDate: _readingDate,
@@ -407,7 +432,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       const SizedBox(height: 8),
       Row(
         children: [
-          Text('Дата показания: ${_readingDate.day}.${_readingDate.month}.${_readingDate.year}'),
+          Text('Дата показания: ${formatDate(_readingDate)}'),
           TextButton(onPressed: _pickReadingDate, child: const Text('Изменить')),
         ],
       ),
@@ -439,13 +464,30 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
         TextFormField(
           controller: _valueControllers[channel.id],
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: InputDecoration(labelText: 'Текущее показание, ${channel.unit}'),
           validator: (v) {
             if (v == null || v.isEmpty) return 'Введите показание';
-            if (double.tryParse(v.replaceAll(',', '.')) == null) return 'Введите число';
+            final value = double.tryParse(v.replaceAll(',', '.'));
+            if (value == null) return 'Введите число';
+            // ТЗ §4.2: понижение допустимо только при явной замене счётчика.
+            if (previous != null && !_isReplaced(channel.id) && value < previous.value) {
+              return 'Меньше предыдущего (${previous.value}). '
+                  'Если счётчик заменён — отметьте флажок ниже';
+            }
             return null;
           },
         ),
+        if (previous != null)
+          CheckboxListTile(
+            value: _replaced[channel.id] ?? false,
+            onChanged: (checked) => setState(() => _replaced[channel.id] = checked ?? false),
+            title: const Text('Счётчик заменён'),
+            subtitle: const Text('Расход будет равен новому показанию'),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
         const SizedBox(height: 16),
       ];
     }
@@ -482,7 +524,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       const SizedBox(height: 12),
       Row(
         children: [
-          Text('Период: ${_period.month}.${_period.year}'),
+          Text('Период: ${formatPeriod(_period)}'),
           TextButton(onPressed: _pickPeriod, child: const Text('Изменить')),
         ],
       ),

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../database/app_database.dart';
 import '../../models/receipt.dart';
 import '../../providers/receipt_provider.dart';
+import '../../utils/date_format.dart';
 
 /// Прикрепление чека (ТЗ §4.5, схема §2.5: /payments/:paymentId/receipt) —
 /// отдельное необязательное действие: доступно сразу после ввода оплаты
@@ -132,9 +133,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
                       final receipt = receipts[index];
                       return ListTile(
                         leading: const Icon(Icons.receipt_outlined),
-                        title: Text(
-                          '${receipt.createdAt.day}.${receipt.createdAt.month}.${receipt.createdAt.year}',
-                        ),
+                        title: Text(formatDate(receipt.createdAt)),
                         trailing: const Icon(Icons.open_in_new, size: 18),
                         onTap: () => _open(receipt),
                       );

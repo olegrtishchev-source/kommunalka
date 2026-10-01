@@ -11,6 +11,7 @@ import '../../models/supplier.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../utils/bank_details_format.dart';
+import '../../utils/date_format.dart';
 
 /// Оплата (ТЗ §4.4, схема 2.5, сценарий 3): расчётная сумма, реквизиты
 /// поставщика с копированием, напоминание, что оплата идёт через
@@ -213,10 +214,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            Text(
-                              'Дата оплаты: '
-                              '${_paymentDate.day}.${_paymentDate.month}.${_paymentDate.year}',
-                            ),
+                            Text('Дата оплаты: ${formatDate(_paymentDate)}'),
                             TextButton(
                               onPressed: () async {
                                 final picked = await showDatePicker(
@@ -234,7 +232,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text('Период: ${_period.month}.${_period.year}'),
+                            Text('Период: ${formatPeriod(_period)}'),
                             TextButton(onPressed: _pickPeriod, child: const Text('Изменить')),
                           ],
                         ),

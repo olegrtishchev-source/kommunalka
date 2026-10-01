@@ -5,6 +5,7 @@ import '../../database/app_database.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/receipt_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../utils/date_format.dart';
 import '../../widgets/payment_history_card.dart';
 
 /// Общая история платежей по всем поставщикам (ТЗ §4.6, второй абзац;
@@ -60,10 +61,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   bool _matchesSearch(PaymentRow p, String query) {
     if (query.isEmpty) return true;
     final q = query.toLowerCase();
-    final periodStr = '${p.period.month}.${p.period.year}';
-    final dateStr = p.paymentDate == null
-        ? ''
-        : '${p.paymentDate!.day}.${p.paymentDate!.month}.${p.paymentDate!.year}';
+    final periodStr = formatPeriod(p.period);
+    final dateStr = p.paymentDate == null ? '' : formatDate(p.paymentDate!);
     final calcStr = p.calculatedAmount.toStringAsFixed(2);
     final actualStr = p.actualAmount?.toStringAsFixed(2) ?? '';
     return periodStr.contains(q) ||
@@ -110,7 +109,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       child: Text(
                         _periodFilter == null
                             ? 'Период'
-                            : '${_periodFilter!.month}.${_periodFilter!.year}',
+                            : formatPeriod(_periodFilter!),
                       ),
                     ),
                     if (_periodFilter != null)
