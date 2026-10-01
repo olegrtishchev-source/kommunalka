@@ -26,6 +26,8 @@ class BankDetails {
     this.kpp,
     this.bik,
     this.accountNumber,
+    this.bankName,
+    this.corrAccount,
   });
 
   final String? recipient;
@@ -33,6 +35,8 @@ class BankDetails {
   final String? kpp;
   final String? bik;
   final String? accountNumber;
+  final String? bankName;
+  final String? corrAccount;
 
   factory BankDetails.fromJson(Map<String, dynamic> json) {
     return BankDetails(
@@ -41,6 +45,8 @@ class BankDetails {
       kpp: json['kpp'] as String?,
       bik: json['bik'] as String?,
       accountNumber: json['account_number'] as String?,
+      bankName: json['bank_name'] as String?,
+      corrAccount: json['corr_account'] as String?,
     );
   }
 
@@ -51,6 +57,8 @@ class BankDetails {
       'kpp': kpp,
       'bik': bik,
       'account_number': accountNumber,
+      'bank_name': bankName,
+      'corr_account': corrAccount,
     };
   }
 }
@@ -65,6 +73,10 @@ class Supplier {
     required this.type,
     this.bankDetails,
     this.paymentPurposeTemplate,
+    this.personalAccount,
+    this.readingMethods = const [],
+    this.cabinetUrl,
+    this.readingEmail,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -77,6 +89,10 @@ class Supplier {
   final SupplierType type;
   final BankDetails? bankDetails;
   final String? paymentPurposeTemplate;
+  final String? personalAccount;
+  final List<String> readingMethods;
+  final String? cabinetUrl;
+  final String? readingEmail;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -94,6 +110,13 @@ class Supplier {
       bankDetails:
           bankDetailsJson != null ? BankDetails.fromJson(bankDetailsJson) : null,
       paymentPurposeTemplate: json['payment_purpose_template'] as String?,
+      personalAccount: json['personal_account'] as String?,
+      readingMethods: (json['reading_methods'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      cabinetUrl: json['cabinet_url'] as String?,
+      readingEmail: json['reading_email'] as String?,
       archivedAt: parseDateOrNull(json['archived_at']),
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),
@@ -109,6 +132,10 @@ class Supplier {
       'type': type.dbValue,
       'bank_details': bankDetails?.toJson(),
       'payment_purpose_template': paymentPurposeTemplate,
+      'personal_account': personalAccount,
+      'reading_methods': readingMethods,
+      'cabinet_url': cabinetUrl,
+      'reading_email': readingEmail,
       'archived_at': archivedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),

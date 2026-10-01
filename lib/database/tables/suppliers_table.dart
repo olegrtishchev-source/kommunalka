@@ -16,6 +16,13 @@ class Suppliers extends Table {
   /// Сериализованный JSON (BankDetails.toJson()).
   TextColumn get bankDetails => text().nullable()();
   TextColumn get paymentPurposeTemplate => text().nullable()();
+  /// Лицевой счёт плательщика у поставщика (ТЗ §4.11).
+  TextColumn get personalAccount => text().nullable()();
+  /// Способы передачи показаний (bank_form / cabinet / email) — сериализованный
+  /// JSON-массив строк (в SQLite нет типа массива), ТЗ §4.12.
+  TextColumn get readingMethods => text().nullable()();
+  TextColumn get cabinetUrl => text().nullable()();
+  TextColumn get readingEmail => text().nullable()();
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();

@@ -54,6 +54,10 @@ class SupplierRepository {
     required SupplierType type,
     BankDetails? bankDetails,
     String? paymentPurposeTemplate,
+    String? personalAccount,
+    List<String> readingMethods = const [],
+    String? cabinetUrl,
+    String? readingEmail,
   }) async {
     final row = await guardRepositoryCall(
       () => _client
@@ -64,6 +68,10 @@ class SupplierRepository {
             'type': type.dbValue,
             'bank_details': bankDetails?.toJson(),
             'payment_purpose_template': paymentPurposeTemplate,
+            'personal_account': personalAccount,
+            'reading_methods': readingMethods,
+            'cabinet_url': cabinetUrl,
+            'reading_email': readingEmail,
           })
           .select()
           .single(),
@@ -86,6 +94,10 @@ class SupplierRepository {
             'type': supplier.type.dbValue,
             'bank_details': supplier.bankDetails?.toJson(),
             'payment_purpose_template': supplier.paymentPurposeTemplate,
+            'personal_account': supplier.personalAccount,
+            'reading_methods': supplier.readingMethods,
+            'cabinet_url': supplier.cabinetUrl,
+            'reading_email': supplier.readingEmail,
           })
           .eq('id', supplier.id)
           .select()
@@ -121,6 +133,12 @@ class SupplierRepository {
         s.bankDetails == null ? null : jsonEncode(s.bankDetails!.toJson()),
       ),
       paymentPurposeTemplate: Value(s.paymentPurposeTemplate),
+      personalAccount: Value(s.personalAccount),
+      readingMethods: Value(
+        s.readingMethods.isEmpty ? null : jsonEncode(s.readingMethods),
+      ),
+      cabinetUrl: Value(s.cabinetUrl),
+      readingEmail: Value(s.readingEmail),
       archivedAt: Value(s.archivedAt),
       createdAt: Value(s.createdAt),
       updatedAt: Value(s.updatedAt),

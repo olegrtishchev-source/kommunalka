@@ -77,6 +77,22 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
   final _kppController = TextEditingController();
   final _bikController = TextEditingController();
   final _accountController = TextEditingController();
+  final _bankNameController = TextEditingController();
+  final _corrAccountController = TextEditingController();
+  final _personalAccountController = TextEditingController();
+  final _cabinetUrlController = TextEditingController();
+  final _readingEmailController = TextEditingController();
+
+  /// Способы передачи показаний (ТЗ §4.12): ключ — значение в Supabase
+  /// (reading_methods), подпись — русская.
+  static const _readingMethodsOptions = {
+    'bank_form': 'В платёжной форме банка',
+    'cabinet': 'Личный кабинет',
+    'email': 'Письмо на e-mail',
+  };
+
+  /// Выбранные способы передачи показаний.
+  final Set<String> _readingMethods = {};
 
   SupplierType _type = SupplierType.withReadings;
   final List<_ChannelFormEntry> _channelEntries = [];
@@ -104,6 +120,11 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
     _kppController.dispose();
     _bikController.dispose();
     _accountController.dispose();
+    _bankNameController.dispose();
+    _corrAccountController.dispose();
+    _personalAccountController.dispose();
+    _cabinetUrlController.dispose();
+    _readingEmailController.dispose();
     for (final entry in _channelEntries) {
       entry.dispose();
     }
@@ -151,7 +172,19 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
           _kppController.text = details.kpp ?? '';
           _bikController.text = details.bik ?? '';
           _accountController.text = details.accountNumber ?? '';
+          _bankNameController.text = details.bankName ?? '';
+          _corrAccountController.text = details.corrAccount ?? '';
         }
+        _personalAccountController.text = supplier.personalAccount ?? '';
+        final readingMethodsJson = supplier.readingMethods;
+        if (readingMethodsJson != null && readingMethodsJson.isNotEmpty) {
+          _readingMethods.addAll(
+            (jsonDecode(readingMethodsJson) as List<dynamic>)
+                .map((e) => e as String),
+          );
+        }
+        _cabinetUrlController.text = supplier.cabinetUrl ?? '';
+        _readingEmailController.text = supplier.readingEmail ?? '';
         _channelEntries.addAll(
           channels.where((c) => c.supplierId == widget.supplierId).map(
                 (c) => _ChannelFormEntry(
@@ -225,7 +258,9 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
       _innController.text.trim().isNotEmpty ||
       _kppController.text.trim().isNotEmpty ||
       _bikController.text.trim().isNotEmpty ||
-      _accountController.text.trim().isNotEmpty;
+      _accountController.text.trim().isNotEmpty ||
+      _bankNameController.text.trim().isNotEmpty ||
+      _corrAccountController.text.trim().isNotEmpty;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -241,6 +276,8 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
               kpp: _emptyToNull(_kppController.text),
               bik: _emptyToNull(_bikController.text),
               accountNumber: _emptyToNull(_accountController.text),
+              bankName: _emptyToNull(_bankNameController.text),
+              corrAccount: _emptyToNull(_corrAccountController.text),
             )
           : null;
 
@@ -259,6 +296,10 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
             type: _type,
             bankDetails: bankDetails,
             paymentPurposeTemplate: _emptyToNull(_paymentPurposeController.text),
+            personalAccount: _emptyToNull(_personalAccountController.text),
+            readingMethods: _readingMethods.toList(),
+            cabinetUrl: _emptyToNull(_cabinetUrlController.text),
+            readingEmail: _emptyToNull(_readingEmailController.text),
             archivedAt: existing.archivedAt,
             createdAt: existing.createdAt,
             updatedAt: existing.updatedAt,
@@ -271,6 +312,10 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
           type: _type,
           bankDetails: bankDetails,
           paymentPurposeTemplate: _emptyToNull(_paymentPurposeController.text),
+          personalAccount: _emptyToNull(_personalAccountController.text),
+          readingMethods: _readingMethods.toList(),
+          cabinetUrl: _emptyToNull(_cabinetUrlController.text),
+          readingEmail: _emptyToNull(_readingEmailController.text),
         );
       }
 
@@ -394,12 +439,64 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                         ),
                         const SizedBox(height: 8),
                         TextFormField(
+                          controller: _bankNameController,
+                          decoration: const InputDecoration(labelText: 'Название банка'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _corrAccountController,
+                          decoration: const InputDecoration(labelText: 'Корр. счёт'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
                           controller: _paymentPurposeController,
                           decoration: const InputDecoration(
                             labelText: 'Шаблон назначения платежа',
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Передача показаний',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _personalAccountController,
+                      decoration: const InputDecoration(labelText: 'Лицевой счёт'),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Способы передачи показаний (ТЗ §4.12):',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    for (final entry in _readingMethodsOptions.entries)
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(entry.value),
+                        value: _readingMethods.contains(entry.key),
+                        onChanged: (checked) => setState(() {
+                          if (checked == true) {
+                            _readingMethods.add(entry.key);
+                          } else {
+                            _readingMethods.remove(entry.key);
+                          }
+                        }),
+                      ),
+                    TextFormField(
+                      controller: _cabinetUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Ссылка на личный кабинет',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _readingEmailController,
+                      decoration: const InputDecoration(
+                        labelText: 'E-mail для передачи показаний',
+                      ),
                     ),
                     const SizedBox(height: 20),
                     if (_type == SupplierType.withReadings) ...[

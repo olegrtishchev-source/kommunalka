@@ -22,6 +22,10 @@ create table suppliers (
   type text not null check (type in ('with_readings', 'without_readings')),
   bank_details jsonb,
   payment_purpose_template text,
+  personal_account text,
+  reading_methods text[] not null default '{}',
+  cabinet_url text,
+  reading_email text,
   archived_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

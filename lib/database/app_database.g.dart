@@ -78,6 +78,50 @@ class $SuppliersTable extends Suppliers
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _personalAccountMeta = const VerificationMeta(
+    'personalAccount',
+  );
+  @override
+  late final GeneratedColumn<String> personalAccount = GeneratedColumn<String>(
+    'personal_account',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readingMethodsMeta = const VerificationMeta(
+    'readingMethods',
+  );
+  @override
+  late final GeneratedColumn<String> readingMethods = GeneratedColumn<String>(
+    'reading_methods',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cabinetUrlMeta = const VerificationMeta(
+    'cabinetUrl',
+  );
+  @override
+  late final GeneratedColumn<String> cabinetUrl = GeneratedColumn<String>(
+    'cabinet_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readingEmailMeta = const VerificationMeta(
+    'readingEmail',
+  );
+  @override
+  late final GeneratedColumn<String> readingEmail = GeneratedColumn<String>(
+    'reading_email',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -120,6 +164,10 @@ class $SuppliersTable extends Suppliers
     type,
     bankDetails,
     paymentPurposeTemplate,
+    personalAccount,
+    readingMethods,
+    cabinetUrl,
+    readingEmail,
     archivedAt,
     createdAt,
     updatedAt,
@@ -189,6 +237,39 @@ class $SuppliersTable extends Suppliers
         ),
       );
     }
+    if (data.containsKey('personal_account')) {
+      context.handle(
+        _personalAccountMeta,
+        personalAccount.isAcceptableOrUnknown(
+          data['personal_account']!,
+          _personalAccountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reading_methods')) {
+      context.handle(
+        _readingMethodsMeta,
+        readingMethods.isAcceptableOrUnknown(
+          data['reading_methods']!,
+          _readingMethodsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cabinet_url')) {
+      context.handle(
+        _cabinetUrlMeta,
+        cabinetUrl.isAcceptableOrUnknown(data['cabinet_url']!, _cabinetUrlMeta),
+      );
+    }
+    if (data.containsKey('reading_email')) {
+      context.handle(
+        _readingEmailMeta,
+        readingEmail.isAcceptableOrUnknown(
+          data['reading_email']!,
+          _readingEmailMeta,
+        ),
+      );
+    }
     if (data.containsKey('archived_at')) {
       context.handle(
         _archivedAtMeta,
@@ -248,6 +329,22 @@ class $SuppliersTable extends Suppliers
         DriftSqlType.string,
         data['${effectivePrefix}payment_purpose_template'],
       ),
+      personalAccount: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}personal_account'],
+      ),
+      readingMethods: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reading_methods'],
+      ),
+      cabinetUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cabinet_url'],
+      ),
+      readingEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reading_email'],
+      ),
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -279,6 +376,15 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
   /// Сериализованный JSON (BankDetails.toJson()).
   final String? bankDetails;
   final String? paymentPurposeTemplate;
+
+  /// Лицевой счёт плательщика у поставщика (ТЗ §4.11).
+  final String? personalAccount;
+
+  /// Способы передачи показаний (bank_form / cabinet / email) — сериализованный
+  /// JSON-массив строк (в SQLite нет типа массива), ТЗ §4.12.
+  final String? readingMethods;
+  final String? cabinetUrl;
+  final String? readingEmail;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -290,6 +396,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     required this.type,
     this.bankDetails,
     this.paymentPurposeTemplate,
+    this.personalAccount,
+    this.readingMethods,
+    this.cabinetUrl,
+    this.readingEmail,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -311,6 +421,18 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       map['payment_purpose_template'] = Variable<String>(
         paymentPurposeTemplate,
       );
+    }
+    if (!nullToAbsent || personalAccount != null) {
+      map['personal_account'] = Variable<String>(personalAccount);
+    }
+    if (!nullToAbsent || readingMethods != null) {
+      map['reading_methods'] = Variable<String>(readingMethods);
+    }
+    if (!nullToAbsent || cabinetUrl != null) {
+      map['cabinet_url'] = Variable<String>(cabinetUrl);
+    }
+    if (!nullToAbsent || readingEmail != null) {
+      map['reading_email'] = Variable<String>(readingEmail);
     }
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
@@ -335,6 +457,18 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       paymentPurposeTemplate: paymentPurposeTemplate == null && nullToAbsent
           ? const Value.absent()
           : Value(paymentPurposeTemplate),
+      personalAccount: personalAccount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(personalAccount),
+      readingMethods: readingMethods == null && nullToAbsent
+          ? const Value.absent()
+          : Value(readingMethods),
+      cabinetUrl: cabinetUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cabinetUrl),
+      readingEmail: readingEmail == null && nullToAbsent
+          ? const Value.absent()
+          : Value(readingEmail),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -358,6 +492,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       paymentPurposeTemplate: serializer.fromJson<String?>(
         json['paymentPurposeTemplate'],
       ),
+      personalAccount: serializer.fromJson<String?>(json['personalAccount']),
+      readingMethods: serializer.fromJson<String?>(json['readingMethods']),
+      cabinetUrl: serializer.fromJson<String?>(json['cabinetUrl']),
+      readingEmail: serializer.fromJson<String?>(json['readingEmail']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -376,6 +514,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       'paymentPurposeTemplate': serializer.toJson<String?>(
         paymentPurposeTemplate,
       ),
+      'personalAccount': serializer.toJson<String?>(personalAccount),
+      'readingMethods': serializer.toJson<String?>(readingMethods),
+      'cabinetUrl': serializer.toJson<String?>(cabinetUrl),
+      'readingEmail': serializer.toJson<String?>(readingEmail),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -390,6 +532,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     String? type,
     Value<String?> bankDetails = const Value.absent(),
     Value<String?> paymentPurposeTemplate = const Value.absent(),
+    Value<String?> personalAccount = const Value.absent(),
+    Value<String?> readingMethods = const Value.absent(),
+    Value<String?> cabinetUrl = const Value.absent(),
+    Value<String?> readingEmail = const Value.absent(),
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -403,6 +549,14 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     paymentPurposeTemplate: paymentPurposeTemplate.present
         ? paymentPurposeTemplate.value
         : this.paymentPurposeTemplate,
+    personalAccount: personalAccount.present
+        ? personalAccount.value
+        : this.personalAccount,
+    readingMethods: readingMethods.present
+        ? readingMethods.value
+        : this.readingMethods,
+    cabinetUrl: cabinetUrl.present ? cabinetUrl.value : this.cabinetUrl,
+    readingEmail: readingEmail.present ? readingEmail.value : this.readingEmail,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -420,6 +574,18 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       paymentPurposeTemplate: data.paymentPurposeTemplate.present
           ? data.paymentPurposeTemplate.value
           : this.paymentPurposeTemplate,
+      personalAccount: data.personalAccount.present
+          ? data.personalAccount.value
+          : this.personalAccount,
+      readingMethods: data.readingMethods.present
+          ? data.readingMethods.value
+          : this.readingMethods,
+      cabinetUrl: data.cabinetUrl.present
+          ? data.cabinetUrl.value
+          : this.cabinetUrl,
+      readingEmail: data.readingEmail.present
+          ? data.readingEmail.value
+          : this.readingEmail,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -438,6 +604,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           ..write('type: $type, ')
           ..write('bankDetails: $bankDetails, ')
           ..write('paymentPurposeTemplate: $paymentPurposeTemplate, ')
+          ..write('personalAccount: $personalAccount, ')
+          ..write('readingMethods: $readingMethods, ')
+          ..write('cabinetUrl: $cabinetUrl, ')
+          ..write('readingEmail: $readingEmail, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -454,6 +624,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     type,
     bankDetails,
     paymentPurposeTemplate,
+    personalAccount,
+    readingMethods,
+    cabinetUrl,
+    readingEmail,
     archivedAt,
     createdAt,
     updatedAt,
@@ -469,6 +643,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           other.type == this.type &&
           other.bankDetails == this.bankDetails &&
           other.paymentPurposeTemplate == this.paymentPurposeTemplate &&
+          other.personalAccount == this.personalAccount &&
+          other.readingMethods == this.readingMethods &&
+          other.cabinetUrl == this.cabinetUrl &&
+          other.readingEmail == this.readingEmail &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -482,6 +660,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
   final Value<String> type;
   final Value<String?> bankDetails;
   final Value<String?> paymentPurposeTemplate;
+  final Value<String?> personalAccount;
+  final Value<String?> readingMethods;
+  final Value<String?> cabinetUrl;
+  final Value<String?> readingEmail;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -494,6 +676,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     this.type = const Value.absent(),
     this.bankDetails = const Value.absent(),
     this.paymentPurposeTemplate = const Value.absent(),
+    this.personalAccount = const Value.absent(),
+    this.readingMethods = const Value.absent(),
+    this.cabinetUrl = const Value.absent(),
+    this.readingEmail = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -507,6 +693,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     required String type,
     this.bankDetails = const Value.absent(),
     this.paymentPurposeTemplate = const Value.absent(),
+    this.personalAccount = const Value.absent(),
+    this.readingMethods = const Value.absent(),
+    this.cabinetUrl = const Value.absent(),
+    this.readingEmail = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -525,6 +715,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     Expression<String>? type,
     Expression<String>? bankDetails,
     Expression<String>? paymentPurposeTemplate,
+    Expression<String>? personalAccount,
+    Expression<String>? readingMethods,
+    Expression<String>? cabinetUrl,
+    Expression<String>? readingEmail,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -539,6 +733,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       if (bankDetails != null) 'bank_details': bankDetails,
       if (paymentPurposeTemplate != null)
         'payment_purpose_template': paymentPurposeTemplate,
+      if (personalAccount != null) 'personal_account': personalAccount,
+      if (readingMethods != null) 'reading_methods': readingMethods,
+      if (cabinetUrl != null) 'cabinet_url': cabinetUrl,
+      if (readingEmail != null) 'reading_email': readingEmail,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -554,6 +752,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     Value<String>? type,
     Value<String?>? bankDetails,
     Value<String?>? paymentPurposeTemplate,
+    Value<String?>? personalAccount,
+    Value<String?>? readingMethods,
+    Value<String?>? cabinetUrl,
+    Value<String?>? readingEmail,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -568,6 +770,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       bankDetails: bankDetails ?? this.bankDetails,
       paymentPurposeTemplate:
           paymentPurposeTemplate ?? this.paymentPurposeTemplate,
+      personalAccount: personalAccount ?? this.personalAccount,
+      readingMethods: readingMethods ?? this.readingMethods,
+      cabinetUrl: cabinetUrl ?? this.cabinetUrl,
+      readingEmail: readingEmail ?? this.readingEmail,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -601,6 +807,18 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
         paymentPurposeTemplate.value,
       );
     }
+    if (personalAccount.present) {
+      map['personal_account'] = Variable<String>(personalAccount.value);
+    }
+    if (readingMethods.present) {
+      map['reading_methods'] = Variable<String>(readingMethods.value);
+    }
+    if (cabinetUrl.present) {
+      map['cabinet_url'] = Variable<String>(cabinetUrl.value);
+    }
+    if (readingEmail.present) {
+      map['reading_email'] = Variable<String>(readingEmail.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -626,6 +844,10 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
           ..write('type: $type, ')
           ..write('bankDetails: $bankDetails, ')
           ..write('paymentPurposeTemplate: $paymentPurposeTemplate, ')
+          ..write('personalAccount: $personalAccount, ')
+          ..write('readingMethods: $readingMethods, ')
+          ..write('cabinetUrl: $cabinetUrl, ')
+          ..write('readingEmail: $readingEmail, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2802,6 +3024,10 @@ typedef $$SuppliersTableCreateCompanionBuilder =
       required String type,
       Value<String?> bankDetails,
       Value<String?> paymentPurposeTemplate,
+      Value<String?> personalAccount,
+      Value<String?> readingMethods,
+      Value<String?> cabinetUrl,
+      Value<String?> readingEmail,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -2816,6 +3042,10 @@ typedef $$SuppliersTableUpdateCompanionBuilder =
       Value<String> type,
       Value<String?> bankDetails,
       Value<String?> paymentPurposeTemplate,
+      Value<String?> personalAccount,
+      Value<String?> readingMethods,
+      Value<String?> cabinetUrl,
+      Value<String?> readingEmail,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -2863,6 +3093,26 @@ class $$SuppliersTableFilterComposer
 
   ColumnFilters<String> get paymentPurposeTemplate => $composableBuilder(
     column: $table.paymentPurposeTemplate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get personalAccount => $composableBuilder(
+    column: $table.personalAccount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get readingMethods => $composableBuilder(
+    column: $table.readingMethods,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cabinetUrl => $composableBuilder(
+    column: $table.cabinetUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get readingEmail => $composableBuilder(
+    column: $table.readingEmail,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2926,6 +3176,26 @@ class $$SuppliersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get personalAccount => $composableBuilder(
+    column: $table.personalAccount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get readingMethods => $composableBuilder(
+    column: $table.readingMethods,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cabinetUrl => $composableBuilder(
+    column: $table.cabinetUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get readingEmail => $composableBuilder(
+    column: $table.readingEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -2973,6 +3243,26 @@ class $$SuppliersTableAnnotationComposer
 
   GeneratedColumn<String> get paymentPurposeTemplate => $composableBuilder(
     column: $table.paymentPurposeTemplate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get personalAccount => $composableBuilder(
+    column: $table.personalAccount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get readingMethods => $composableBuilder(
+    column: $table.readingMethods,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get cabinetUrl => $composableBuilder(
+    column: $table.cabinetUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get readingEmail => $composableBuilder(
+    column: $table.readingEmail,
     builder: (column) => column,
   );
 
@@ -3026,6 +3316,10 @@ class $$SuppliersTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<String?> bankDetails = const Value.absent(),
                 Value<String?> paymentPurposeTemplate = const Value.absent(),
+                Value<String?> personalAccount = const Value.absent(),
+                Value<String?> readingMethods = const Value.absent(),
+                Value<String?> cabinetUrl = const Value.absent(),
+                Value<String?> readingEmail = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -3038,6 +3332,10 @@ class $$SuppliersTableTableManager
                 type: type,
                 bankDetails: bankDetails,
                 paymentPurposeTemplate: paymentPurposeTemplate,
+                personalAccount: personalAccount,
+                readingMethods: readingMethods,
+                cabinetUrl: cabinetUrl,
+                readingEmail: readingEmail,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -3052,6 +3350,10 @@ class $$SuppliersTableTableManager
                 required String type,
                 Value<String?> bankDetails = const Value.absent(),
                 Value<String?> paymentPurposeTemplate = const Value.absent(),
+                Value<String?> personalAccount = const Value.absent(),
+                Value<String?> readingMethods = const Value.absent(),
+                Value<String?> cabinetUrl = const Value.absent(),
+                Value<String?> readingEmail = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -3064,6 +3366,10 @@ class $$SuppliersTableTableManager
                 type: type,
                 bankDetails: bankDetails,
                 paymentPurposeTemplate: paymentPurposeTemplate,
+                personalAccount: personalAccount,
+                readingMethods: readingMethods,
+                cabinetUrl: cabinetUrl,
+                readingEmail: readingEmail,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
