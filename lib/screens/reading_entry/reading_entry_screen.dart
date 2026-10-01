@@ -11,6 +11,7 @@ import '../../providers/channel_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/reading_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../utils/amount_format.dart';
 import '../../utils/date_format.dart';
 
 /// Ввод показаний (with_readings) или суммы к оплате (without_readings) —
@@ -244,8 +245,8 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       final note = replaced ? ' (счётчик заменён)' : '';
       return (
         amount: amount,
-        line: '${channel.name}$note: $consumption ${channel.unit} × ${channel.tariff} ₽ '
-            '= ${amount.toStringAsFixed(2)} ₽',
+        line: '${channel.name}$note: $consumption ${channel.unit} × ${formatNumber(channel.tariff)} ₽ '
+            '= ${formatAmount(amount)}',
       );
     }
     final derived = _derivedEntry[channel.id];
@@ -254,7 +255,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
     return (
       amount: amount,
       line: '${channel.name} (произв.): ${derived.consumption} ${channel.unit} × '
-          '${channel.tariff} ₽ = ${amount.toStringAsFixed(2)} ₽',
+          '${formatNumber(channel.tariff)} ₽ = ${formatAmount(amount)}',
     );
   }
 
@@ -443,7 +444,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
         for (final line in previews) Text(line),
         const SizedBox(height: 4),
         Text(
-          'Итого: ${total.toStringAsFixed(2)} ₽',
+          'Итого: ${formatAmount(total)}',
           style: Theme.of(context).textTheme.titleSmall,
         ),
       ],

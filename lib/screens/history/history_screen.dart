@@ -5,6 +5,7 @@ import '../../database/app_database.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/receipt_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../utils/amount_format.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/payment_history_card.dart';
 
@@ -63,8 +64,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final q = query.toLowerCase();
     final periodStr = formatPeriod(p.period);
     final dateStr = p.paymentDate == null ? '' : formatDate(p.paymentDate!);
-    final calcStr = p.calculatedAmount.toStringAsFixed(2);
-    final actualStr = p.actualAmount?.toStringAsFixed(2) ?? '';
+    final calcStr = formatNumber(p.calculatedAmount);
+    final actualStr = p.actualAmount == null ? '' : formatNumber(p.actualAmount!);
     return periodStr.contains(q) ||
         dateStr.contains(q) ||
         calcStr.contains(q) ||

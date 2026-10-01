@@ -11,6 +11,7 @@ import '../../providers/channel_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/channel_repository.dart';
+import '../../utils/amount_format.dart';
 import '../../utils/bank_details_format.dart';
 import '../../utils/supplier_category_icon.dart';
 
@@ -205,7 +206,7 @@ class _ChannelsList extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  '${channel.name}: ${channel.tariff} ₽/${channel.unit}'
+                  '${channel.name}: ${formatNumber(channel.tariff)} ₽/${channel.unit}'
                   '${channel.sourceChannelId != null ? ' (производный)' : ''}',
                 ),
               ),

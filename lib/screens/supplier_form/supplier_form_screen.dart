@@ -10,6 +10,7 @@ import '../../models/supplier.dart';
 import '../../providers/channel_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/channel_repository.dart';
+import '../../utils/amount_format.dart';
 
 /// Добавление/редактирование поставщика (ТЗ §4.1, схема §2.5: /suppliers/new
 /// и /suppliers/:id/edit — один и тот же экран, режим определяется тем,
@@ -157,7 +158,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                   existing: c,
                   name: c.name,
                   unit: c.unit,
-                  tariff: c.tariff.toString(),
+                  tariff: formatNumber(c.tariff),
                   sourceChannelId: c.sourceChannelId,
                 ),
               ),

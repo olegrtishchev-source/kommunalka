@@ -10,6 +10,7 @@ import '../../models/payment.dart';
 import '../../models/supplier.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../utils/amount_format.dart';
 import '../../utils/bank_details_format.dart';
 import '../../utils/date_format.dart';
 
@@ -71,7 +72,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       setState(() {
         _payment = payment;
         _supplier = supplier;
-        _amountController.text = payment?.calculatedAmount.toString() ?? '';
+        _amountController.text =
+            payment == null ? '' : formatNumber(payment.calculatedAmount);
         if (payment != null) _period = payment.period;
         _loading = false;
       });
@@ -166,8 +168,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Расчётная сумма: '
-                          '${_payment!.calculatedAmount.toStringAsFixed(2)} ₽',
+                          'Расчётная сумма: ${formatAmount(_payment!.calculatedAmount)}',
                         ),
                         const SizedBox(height: 8),
                         Text(

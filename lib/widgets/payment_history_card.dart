@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../database/app_database.dart';
 import '../models/payment.dart';
 import '../repositories/receipt_repository.dart';
+import '../utils/amount_format.dart';
 import '../utils/date_format.dart';
 import '../utils/payment_status_format.dart';
 
@@ -75,10 +76,10 @@ class PaymentHistoryCard extends StatelessWidget {
             else if (payment.consumption != null)
               Text('Расход: ${payment.consumption!.toStringAsFixed(2)}'),
             const SizedBox(height: 4),
-            Text('Расчётная сумма: ${payment.calculatedAmount.toStringAsFixed(2)} ₽'),
+            Text('Расчётная сумма: ${formatAmount(payment.calculatedAmount)}'),
             Text(
               payment.actualAmount != null
-                  ? 'Факт-сумма: ${payment.actualAmount!.toStringAsFixed(2)} ₽'
+                  ? 'Факт-сумма: ${formatAmount(payment.actualAmount!)}'
                   : 'Факт-сумма: —',
             ),
             if (payment.paymentDate != null)
