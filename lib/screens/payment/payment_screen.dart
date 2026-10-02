@@ -8,6 +8,7 @@ import 'package:gal/gal.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../database/app_database.dart';
 import '../../models/payment.dart';
@@ -156,29 +157,56 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     final payment = _payment;
     final supplier = _supplier;
     if (payment == null || supplier == null) return;
+    final supplierModel = _supplierFromRow(supplier);
+    final paymentModel = _paymentFromRow(payment);
     final String qrData;
     try {
-      qrData = buildPaymentQr(_supplierFromRow(supplier), _paymentFromRow(payment));
+      qrData = buildPaymentQr(supplierModel, paymentModel);
     } on ArgumentError catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
       return;
     }
+    final readingText = _readingText(paymentModel);
+    final methods = supplierModel.readingMethods;
+    final cabinetUrl = supplierModel.cabinetUrl;
+    final readingEmail = supplierModel.readingEmail;
+
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('QR для оплаты'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            QrImageView(data: qrData, size: 240),
-            const SizedBox(height: 12),
-            const Text(
-              'Загрузите QR как изображение в банковском приложении.',
-              textAlign: TextAlign.center,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              QrImageView(data: qrData, size: 240),
+              if (readingText.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  readingText,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Text(
+                'Загрузите QR как изображение в банковском приложении.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
         actions: [
+          if (methods.contains('cabinet') && cabinetUrl != null)
+            TextButton(
+              onPressed: () => _openCabinet(readingText, cabinetUrl),
+              child: const Text('Личный кабинет'),
+            ),
+          if (methods.contains('email') && readingEmail != null)
+            TextButton(
+              onPressed: () => _openEmail(readingText, readingEmail),
+              child: const Text('Письмо'),
+            ),
           TextButton(
             onPressed: () => _saveQr(qrData),
             child: const Text('Сохранить в галерею'),
@@ -230,6 +258,44 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     }
   }
 
+  /// Текст показаний по каналам для показа крупно и передачи (ТЗ §4.12).
+  String _readingText(Payment payment) {
+    final snapshot = payment.readingSnapshot;
+    if (snapshot == null || snapshot.isEmpty) return '';
+    return snapshot
+        .map((e) => '${e.channelName}: ${e.currentValue} ${e.unit}')
+        .join('\n');
+  }
+
+  /// «Личный кабинет»: копирует показание и открывает ссылку кабинета
+  /// (ТЗ §4.12).
+  Future<void> _openCabinet(String readingText, String cabinetUrl) async {
+    if (readingText.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: readingText));
+    }
+    final uri = Uri.parse(cabinetUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// «Письмо»: открывает почтовое приложение с готовым письмом (ТЗ §4.12).
+  Future<void> _openEmail(String readingText, String readingEmail) async {
+    final personalAccount = _supplier?.personalAccount ?? '';
+    final period = _payment == null ? '' : formatPeriod(_payment!.period);
+    final body = 'Лицевой счёт: $personalAccount\n'
+        'Период: $period\n'
+        'Показание: $readingText';
+    final uri = Uri(
+      scheme: 'mailto',
+      path: readingEmail,
+      queryParameters: {'subject': 'Показания счётчика', 'body': body},
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   /// Рисует QR-строку в PNG-байты (для сохранения в галерею и «Поделиться»).
   Future<Uint8List> _qrPngBytes(String data) async {
     final qr = QrCode.fromData(
@@ -261,6 +327,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             ),
       paymentPurposeTemplate: r.paymentPurposeTemplate,
       personalAccount: r.personalAccount,
+      readingMethods: r.readingMethods == null || r.readingMethods!.isEmpty
+          ? const []
+          : (jsonDecode(r.readingMethods!) as List<dynamic>)
+              .map((e) => e as String)
+              .toList(),
       cabinetUrl: r.cabinetUrl,
       readingEmail: r.readingEmail,
       archivedAt: r.archivedAt,
@@ -275,6 +346,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       userId: r.userId,
       supplierId: r.supplierId,
       period: r.period,
+      readingSnapshot: r.readingSnapshot == null
+          ? null
+          : (jsonDecode(r.readingSnapshot!) as List<dynamic>)
+              .map((e) =>
+                  ReadingSnapshotEntry.fromJson(e as Map<String, dynamic>))
+              .toList(),
       calculatedAmount: r.calculatedAmount,
       actualAmount: r.actualAmount,
       status: PaymentStatus.fromDb(r.status),
