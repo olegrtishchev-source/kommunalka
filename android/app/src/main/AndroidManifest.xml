@@ -7,6 +7,12 @@
          работала бы в собранном apk. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Камера для сканирования QR-кода квитанции (ТЗ §4.11, Этап 5 п. 5.10).
+         По плану разрешение камеры должно было пойти на 6.1 вместе с прочими
+         permissions, но без него сканирование не проверить на устройстве —
+         добавлено здесь, на 6.1 остаётся запись в галерею (для п. 5.12). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
     <application
         android:label="kommunalka"
         android:name="${applicationName}"

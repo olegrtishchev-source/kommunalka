@@ -53,6 +53,11 @@ dependencies:
   image_picker: ^1.1.2
   url_launcher: ^6.3.1
 
+  # Сканирование QR-кода квитанции (камера) — ТЗ §4.11, Этап 5 плана (5.10).
+  # mobile_scanner: CameraX/ML Kit на Android; rawBytes для корректной
+  # кириллицы (cp1251/koi8r), analyzeImage для изображений из галереи.
+  mobile_scanner: ^7.4.2
+
   # Настройки приложения (валюта/формат даты — только хранение выбора,
   # ТЗ §4.8, Этап 4 плана (4.8)
   shared_preferences: ^2.3.3

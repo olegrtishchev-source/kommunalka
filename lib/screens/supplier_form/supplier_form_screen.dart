@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../database/app_database.dart';
 import '../../models/channel.dart';
@@ -11,6 +14,8 @@ import '../../providers/channel_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/channel_repository.dart';
 import '../../utils/amount_format.dart';
+import '../../utils/qr_parser.dart';
+import 'qr_scanner_screen.dart';
 
 /// Добавление/редактирование поставщика (ТЗ §4.1, схема §2.5: /suppliers/new
 /// и /suppliers/:id/edit — один и тот же экран, режим определяется тем,
@@ -66,6 +71,9 @@ class _ChannelFormEntry {
     tariffController.dispose();
   }
 }
+
+/// Источник QR-кода для сканирования (ТЗ §4.11, п. 5.10).
+enum _QrSource { camera, gallery }
 
 class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -364,6 +372,119 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
     return _allChannels.where((c) => c.id != entry.existing?.id).toList();
   }
 
+  /// Выбор источника QR-кода (камера или галерея), ТЗ §4.11.
+  Future<void> _pickQrSource() async {
+    final source = await showModalBottomSheet<_QrSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Камера'),
+              onTap: () => Navigator.pop(context, _QrSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Из галереи'),
+              onTap: () => Navigator.pop(context, _QrSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    if (source == _QrSource.camera) {
+      await _scanQrFromCamera();
+    } else {
+      await _scanQrFromGallery();
+    }
+  }
+
+  /// Сканирование QR камерой: открывает полноэкранный сканер и получает
+  /// распознанный код (ТЗ §4.11, п. 5.10).
+  Future<void> _scanQrFromCamera() async {
+    final barcode = await Navigator.of(context).push<Barcode>(
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (barcode == null || !mounted) return;
+    await _applyQr(_barcodeBytes(barcode), barcode.rawValue);
+  }
+
+  /// Сканирование QR из изображения галереи (ТЗ §4.11, п. 5.10).
+  Future<void> _scanQrFromGallery() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null || !mounted) return;
+    final controller = MobileScannerController();
+    try {
+      final capture = await controller.analyzeImage(picked.path);
+      final barcode = (capture == null || capture.barcodes.isEmpty)
+          ? null
+          : capture.barcodes.first;
+      if (barcode == null) {
+        _showQrNotRecognized();
+        return;
+      }
+      await _applyQr(_barcodeBytes(barcode), barcode.rawValue);
+    } finally {
+      await controller.dispose();
+    }
+  }
+
+  /// Извлекает сырые байты из [Barcode.rawDecodedBytes] (тип BarcodeBytes:
+  /// на Android это DecodedBarcodeBytes.bytes, на Apple — DecodedVisionBarcodeBytes.bytes).
+  Uint8List? _barcodeBytes(Barcode barcode) {
+    final raw = barcode.rawDecodedBytes;
+    if (raw is DecodedBarcodeBytes) return raw.bytes;
+    if (raw is DecodedVisionBarcodeBytes) return raw.bytes;
+    return null;
+  }
+
+  /// Разбирает полученный QR и подставляет значения в поля формы (ТЗ §4.11 —
+  /// поля остаются редактируемыми, сохранение — только после подтверждения).
+  Future<void> _applyQr(Uint8List? rawBytes, String? rawValue) async {
+    if (rawBytes == null && rawValue == null) return;
+    final String decoded;
+    if (rawBytes != null && rawBytes.isNotEmpty) {
+      decoded = decodeQrBytes(rawBytes);
+    } else {
+      decoded = rawValue!;
+    }
+
+    final QrPaymentData data;
+    try {
+      data = parseQrPayment(decoded);
+    } on QrParseException {
+      _showQrNotRecognized();
+      return;
+    }
+
+    setState(() {
+      _recipientController.text = data.fields['name'] ?? '';
+      _accountController.text = data.fields['personalacc'] ?? '';
+      _bankNameController.text = data.fields['bankname'] ?? '';
+      _bikController.text = data.fields['bic'] ?? '';
+      _corrAccountController.text = data.fields['correspacc'] ?? '';
+      _innController.text = data.fields['payeeinn'] ?? '';
+      _kppController.text = data.fields['kpp'] ?? '';
+      _personalAccountController.text = data.fields['persacc'] ?? '';
+      final cabinetUrl = data.fields['a3pay'];
+      if (cabinetUrl != null) {
+        _cabinetUrlController.text = cabinetUrl;
+        _readingMethods.add('cabinet');
+      }
+    });
+  }
+
+  void _showQrNotRecognized() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('QR не распознан. Введите данные вручную.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -406,6 +527,12 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                       selected: {_type},
                       onSelectionChanged: (selection) =>
                           setState(() => _type = selection.first),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _pickQrSource,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Заполнить по QR с квитанции'),
                     ),
                     const SizedBox(height: 20),
                     ExpansionTile(

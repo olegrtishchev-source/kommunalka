@@ -2,6 +2,8 @@
 // Лицевые счета и адреса в тестовых данных — фиктивные (нули), как и требует
 // план: это образцы формата, а не реальные реквизиты.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kommunalka/utils/qr_parser.dart';
@@ -91,6 +93,29 @@ void main() {
         () => parseQrPayment('ST00019|Name=Тест'),
         throwsA(isA<QrParseException>()),
       );
+    });
+  });
+
+  group('decodeQrBytes', () {
+    test('ST00012 (UTF-8) → строка с кириллицей без изменений', () {
+      final decoded = decodeQrBytes(utf8.encode('ST00012|Name=ЕИРЦ'));
+      expect(decoded, 'ST00012|Name=ЕИРЦ');
+    });
+
+    test('ST00011 (Windows-1251) → кириллица декодируется корректно', () {
+      // "ST00011|Name=ТНС" в cp1251 (Т=0xD2, Н=0xCD, С=0xD1).
+      final bytes = <int>[
+        0x53, 0x54, 0x30, 0x30, 0x30, 0x31, // ST0001
+        0x31, // кодировка 1 (Windows-1251)
+        0x7C, // |
+        0x4E, 0x61, 0x6D, 0x65, 0x3D, // Name=
+        0xD2, 0xCD, 0xD1, // ТНС
+      ];
+      expect(decodeQrBytes(bytes), 'ST00011|Name=ТНС');
+    });
+
+    test('не-QR байты → UTF-8', () {
+      expect(decodeQrBytes(utf8.encode('привет')), 'привет');
     });
   });
 }
