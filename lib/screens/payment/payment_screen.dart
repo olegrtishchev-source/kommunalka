@@ -1,9 +1,13 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../database/app_database.dart';
 import '../../models/payment.dart';
@@ -13,6 +17,7 @@ import '../../providers/supplier_provider.dart';
 import '../../utils/amount_format.dart';
 import '../../utils/bank_details_format.dart';
 import '../../utils/date_format.dart';
+import '../../utils/payment_qr_builder.dart';
 
 /// Оплата (ТЗ §4.4, схема 2.5, сценарий 3): расчётная сумма, реквизиты
 /// поставщика с копированием, напоминание, что оплата идёт через
@@ -145,6 +150,140 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     }
   }
 
+  /// Показ QR-кода для оплаты (ТЗ §4.4, п. 5.12): формирует строку ST00012,
+  /// отрисовывает QR и даёт сохранить/поделиться.
+  Future<void> _showPaymentQr() async {
+    final payment = _payment;
+    final supplier = _supplier;
+    if (payment == null || supplier == null) return;
+    final String qrData;
+    try {
+      qrData = buildPaymentQr(_supplierFromRow(supplier), _paymentFromRow(payment));
+    } on ArgumentError catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('QR для оплаты'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            QrImageView(data: qrData, size: 240),
+            const SizedBox(height: 12),
+            const Text(
+              'Загрузите QR как изображение в банковском приложении.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _saveQr(qrData),
+            child: const Text('Сохранить в галерею'),
+          ),
+          TextButton(
+            onPressed: () => _shareQr(qrData),
+            child: const Text('Поделиться'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveQr(String qrData) async {
+    try {
+      final bytes = await _qrPngBytes(qrData);
+      await Gal.putImageBytes(bytes);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('QR сохранён в галерею.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось сохранить QR: $e')),
+      );
+    }
+  }
+
+  Future<void> _shareQr(String qrData) async {
+    try {
+      final bytes = await _qrPngBytes(qrData);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(bytes, mimeType: 'image/png', name: 'qr.png'),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось поделиться QR: $e')),
+      );
+    }
+  }
+
+  /// Рисует QR-строку в PNG-байты (для сохранения в галерею и «Поделиться»).
+  Future<Uint8List> _qrPngBytes(String data) async {
+    final qr = QrCode.fromData(
+      data: data,
+      errorCorrectLevel: QrErrorCorrectLevel.M,
+    );
+    final painter = QrPainter.withQr(qr: qr);
+    const size = 400.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    painter.paint(canvas, const Size(size, size));
+    final image =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  Supplier _supplierFromRow(SupplierRow r) {
+    return Supplier(
+      id: r.id,
+      userId: r.userId,
+      name: r.name,
+      category: r.category,
+      type: SupplierType.fromDb(r.type),
+      bankDetails: r.bankDetails == null
+          ? null
+          : BankDetails.fromJson(
+              Map<String, dynamic>.from(jsonDecode(r.bankDetails!) as Map),
+            ),
+      paymentPurposeTemplate: r.paymentPurposeTemplate,
+      personalAccount: r.personalAccount,
+      cabinetUrl: r.cabinetUrl,
+      readingEmail: r.readingEmail,
+      archivedAt: r.archivedAt,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    );
+  }
+
+  Payment _paymentFromRow(PaymentRow r) {
+    return Payment(
+      id: r.id,
+      userId: r.userId,
+      supplierId: r.supplierId,
+      period: r.period,
+      calculatedAmount: r.calculatedAmount,
+      actualAmount: r.actualAmount,
+      status: PaymentStatus.fromDb(r.status),
+      paymentDate: r.paymentDate,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bankDetailsJson = _supplier?.bankDetails;
@@ -199,6 +338,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                             ),
                           ),
                         ],
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: _showPaymentQr,
+                          icon: const Icon(Icons.qr_code_2),
+                          label: const Text('QR для оплаты'),
+                        ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _amountController,
