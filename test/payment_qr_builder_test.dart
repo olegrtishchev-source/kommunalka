@@ -129,5 +129,43 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('includeCounterVal=false → CounterVal отсутствует (по умолчанию)', () {
+      final qr = buildPaymentQr(
+        supplier(bankDetails: details()),
+        payment(50.0),
+      );
+      expect(qr, isNot(contains('CounterVal')));
+    });
+
+    test('includeCounterVal=true с показанием → CounterVal в QR', () {
+      final withReading = Payment(
+        id: 'p1',
+        userId: 'u1',
+        supplierId: 's1',
+        period: DateTime(2026, 9, 1),
+        readingSnapshot: [
+          ReadingSnapshotEntry(
+            channelId: 'c1',
+            channelName: 'Основной',
+            unit: 'кВт·ч',
+            previousValue: 100,
+            currentValue: 1234.5,
+            tariff: 5.24,
+            readingDate: DateTime(2026, 9, 1),
+          ),
+        ],
+        calculatedAmount: 50.0,
+        status: PaymentStatus.pending,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+      );
+      final qr = buildPaymentQr(
+        supplier(bankDetails: details()),
+        withReading,
+        includeCounterVal: true,
+      );
+      expect(qr, contains('CounterVal=1234.5'));
+    });
   });
 }

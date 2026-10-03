@@ -9,7 +9,15 @@ import '../models/supplier.dart';
 /// карточке поставщика. Sum — расчётная сумма в копейках (целое число).
 /// Purpose — назначение платежа по шаблону с подставленным периодом.
 /// Знак «|» в значениях экранируется пробелом (разделитель полей).
-String buildPaymentQr(Supplier supplier, Payment payment) {
+///
+/// [includeCounterVal] — эксперимент ТЗ §4.4: добавить в QR значение показания
+/// (поле CounterVal, первое показание из reading_snapshot). Включается только
+/// для проверки, подхватывает ли поле банк; по умолчанию выключено.
+String buildPaymentQr(
+  Supplier supplier,
+  Payment payment, {
+  bool includeCounterVal = false,
+}) {
   final details = supplier.bankDetails;
   if (details == null) {
     throw ArgumentError('У поставщика нет банковских реквизитов.');
@@ -49,6 +57,12 @@ String buildPaymentQr(Supplier supplier, Payment payment) {
   add('KPP', details.kpp);
   add('persAcc', supplier.personalAccount);
   add('Sum', '$kopecks');
+  if (includeCounterVal) {
+    final snapshot = payment.readingSnapshot;
+    if (snapshot != null && snapshot.isNotEmpty) {
+      add('CounterVal', '${snapshot.first.currentValue}');
+    }
+  }
   add('Purpose', purpose);
 
   return parts.join('|');

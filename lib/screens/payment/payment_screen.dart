@@ -173,61 +173,94 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('QR для оплаты'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              QrImageView(data: qrData, size: 240),
-              if (readingText.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  readingText,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-              const SizedBox(height: 12),
-              const Text(
-                'Загрузите QR как изображение в банковском приложении.',
-                textAlign: TextAlign.center,
+      builder: (dialogContext) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'QR для оплаты',
+                    style: Theme.of(context).textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Center(child: QrImageView(data: qrData, size: 240)),
+                  if (readingText.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      readingText,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Загрузите QR как изображение в банковском приложении.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  if (methods.contains('cabinet') && cabinetUrl != null)
+                    TextButton(
+                      onPressed: () => _openCabinet(readingText, cabinetUrl),
+                      child: const Text('Личный кабинет'),
+                    ),
+                  if (methods.contains('email') && readingEmail != null)
+                    TextButton(
+                      onPressed: () => _openEmail(readingText, readingEmail),
+                      child: const Text('Письмо'),
+                    ),
+                  TextButton(
+                    onPressed: () => _saveQr(qrData),
+                    child: const Text('Сохранить в галерею'),
+                  ),
+                  TextButton(
+                    onPressed: () => _shareQr(qrData),
+                    child: const Text('Поделиться'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Закрыть'),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        actions: [
-          if (methods.contains('cabinet') && cabinetUrl != null)
-            TextButton(
-              onPressed: () => _openCabinet(readingText, cabinetUrl),
-              child: const Text('Личный кабинет'),
-            ),
-          if (methods.contains('email') && readingEmail != null)
-            TextButton(
-              onPressed: () => _openEmail(readingText, readingEmail),
-              child: const Text('Письмо'),
-            ),
-          TextButton(
-            onPressed: () => _saveQr(qrData),
-            child: const Text('Сохранить в галерею'),
-          ),
-          TextButton(
-            onPressed: () => _shareQr(qrData),
-            child: const Text('Поделиться'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Закрыть'),
-          ),
-        ],
       ),
     );
+  }
+
+  /// Имя файла QR в галерее. Android часто игнорирует [name] в MediaStore,
+  /// поэтому основная сортировка QR — по альбому поставщика (см. [_saveQr]),
+  /// а имя оставляем осмысленным для тех галерей, что его уважают.
+  String _qrFileName() {
+    final supplierName = _supplier?.name ?? 'Поставщик';
+    final safeName = supplierName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final period = _payment?.period ?? _period;
+    return 'QR_${safeName}_${formatPeriod(period)}';
+  }
+
+  /// Альбом галереи для QR — имя поставщика (ТЗ §4.4): при оплате нескольких
+  /// поставщиков QR-коды не путаются, у каждого поставщика свой альбом.
+  String _qrAlbum() {
+    final supplierName = _supplier?.name ?? 'Коммуналка';
+    final safeName = supplierName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    return safeName.isEmpty ? 'Коммуналка' : safeName;
   }
 
   Future<void> _saveQr(String qrData) async {
     try {
       final bytes = await _qrPngBytes(qrData);
-      await Gal.putImageBytes(bytes);
+      await Gal.putImageBytes(
+        bytes,
+        name: _qrFileName(),
+        album: _qrAlbum(),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('QR сохранён в галерею.')),
@@ -297,6 +330,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   /// Рисует QR-строку в PNG-байты (для сохранения в галерею и «Поделиться»).
+  /// Фон заливается белым вручную: QrPainter рисует только модули на
+  /// прозрачном фоне, а галерея/банк показывают прозрачность чёрной —
+  /// без заливки сохранённый QR выглядел бы чёрным квадратом.
   Future<Uint8List> _qrPngBytes(String data) async {
     final qr = QrCode.fromData(
       data: data,
@@ -304,9 +340,15 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     );
     final painter = QrPainter.withQr(qr: qr);
     const size = 400.0;
+    // Тихая зона (quiet zone) по ГОСТ — отступ вокруг QR, чтобы сканеры
+    // уверенно распознавали код.
+    const margin = 24.0;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    painter.paint(canvas, const Size(size, size));
+    final paint = Paint()..color = const Color(0xFFFFFFFF);
+    canvas.drawRect(const Rect.fromLTWH(0, 0, size, size), paint);
+    canvas.translate(margin, margin);
+    painter.paint(canvas, const Size(size - margin * 2, size - margin * 2));
     final image =
         await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
