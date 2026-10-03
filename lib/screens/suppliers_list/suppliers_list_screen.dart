@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../database/app_database.dart';
 import '../../models/payment.dart';
 import '../../providers/payment_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/payment_repository.dart';
 import '../../utils/payment_status_format.dart';
@@ -33,16 +34,26 @@ class SuppliersListScreen extends ConsumerStatefulWidget {
 }
 
 class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
+  /// Выбранный адрес-фильтр (ТЗ §4.13); null — «Все» (без фильтра).
+  String? _selectedAddress;
+
   @override
   void initState() {
     super.initState();
     // Разовая подтяжка кеша из Supabase при открытии экрана (ТЗ §4.7).
-    // Pull-to-refresh — отдельный будущий пункт (сейчас в плане не заведён
-    // явным номером; если понадобится — добавим при следующей правке).
-    Future.microtask(() {
+    Future.microtask(() async {
       ref.read(supplierRepositoryProvider).refresh();
       ref.read(paymentRepositoryProvider).refresh();
+      final settings = await ref.read(settingsServiceProvider.future);
+      if (!mounted) return;
+      setState(() => _selectedAddress = settings.selectedAddress);
     });
+  }
+
+  Future<void> _selectAddress(String? address) async {
+    setState(() => _selectedAddress = address);
+    final settings = await ref.read(settingsServiceProvider.future);
+    await settings.setSelectedAddress(address);
   }
 
   Future<bool> _confirmArchive(BuildContext context, String name) async {
@@ -87,8 +98,8 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
       body: StreamBuilder<List<SupplierRow>>(
         stream: supplierRepo.watchActive(),
         builder: (context, snapshot) {
-          final suppliers = snapshot.data ?? const [];
-          if (suppliers.isEmpty) {
+          final allSuppliers = snapshot.data ?? const [];
+          if (allSuppliers.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
@@ -96,10 +107,55 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
               ),
             );
           }
+
+          // Список адресов собирается из данных (ТЗ §4.13): какие адреса
+          // реально заполнены у поставщиков, в алфавитном порядке.
+          final addresses = <String>{
+            for (final s in allSuppliers)
+              if (s.address != null && s.address!.trim().isNotEmpty)
+                s.address!.trim(),
+          }.toList()
+            ..sort();
+
+          // Фильтр: null («Все») — все; иначе — только поставщики этого адреса
+          // (поставщики без адреса видны только в «Все»).
+          final suppliers = _selectedAddress == null
+              ? allSuppliers
+              : allSuppliers
+                  .where((s) => s.address?.trim() == _selectedAddress)
+                  .toList();
+
           return Column(
             children: [
+              if (addresses.isNotEmpty)
+                SizedBox(
+                  height: 48,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ChoiceChip(
+                          label: const Text('Все'),
+                          selected: _selectedAddress == null,
+                          onSelected: (_) => _selectAddress(null),
+                        ),
+                      ),
+                      for (final address in addresses)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: ChoiceChip(
+                            label: Text(address),
+                            selected: _selectedAddress == address,
+                            onSelected: (_) => _selectAddress(address),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               const Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 0),
                 child: Row(
                   children: [
                     Icon(Icons.swipe_left, size: 16),
@@ -114,43 +170,55 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
                 ),
               ),
               Expanded(
-                child: ListView.builder(
-                  itemCount: suppliers.length,
-                  itemBuilder: (context, index) {
-                    final supplier = suppliers[index];
-                    return Dismissible(
-                      key: ValueKey(supplier.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Icon(Icons.archive_outlined),
-                      ),
-                      confirmDismiss: (_) => _confirmArchive(context, supplier.name),
-                      onDismissed: (_) {
-                        ref.read(supplierRepositoryProvider).archive(supplier.id);
-                      },
-                      child: Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        child: ListTile(
-                          leading:
-                              Icon(iconForSupplierCategory(supplier.category)),
-                          title: Text(supplier.name),
-                          subtitle: supplier.category != null
-                              ? Text(supplier.category!)
-                              : null,
-                          trailing: _CurrentPeriodBadge(
-                            supplierId: supplier.id,
-                            paymentRepo: paymentRepo,
-                          ),
-                          onTap: () => context.push('/suppliers/${supplier.id}'),
+                child: suppliers.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('По этому адресу поставщиков нет.'),
                         ),
+                      )
+                    : ListView.builder(
+                        itemCount: suppliers.length,
+                        itemBuilder: (context, index) {
+                          final supplier = suppliers[index];
+                          return Dismissible(
+                            key: ValueKey(supplier.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              color: Theme.of(context).colorScheme.errorContainer,
+                              alignment: Alignment.centerRight,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 20),
+                              child: const Icon(Icons.archive_outlined),
+                            ),
+                            confirmDismiss: (_) =>
+                                _confirmArchive(context, supplier.name),
+                            onDismissed: (_) {
+                              ref
+                                  .read(supplierRepositoryProvider)
+                                  .archive(supplier.id);
+                            },
+                            child: Card(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              child: ListTile(
+                                leading: Icon(
+                                    iconForSupplierCategory(supplier.category)),
+                                title: Text(supplier.name),
+                                subtitle: supplier.category != null
+                                    ? Text(supplier.category!)
+                                    : null,
+                                trailing: _CurrentPeriodBadge(
+                                  supplierId: supplier.id,
+                                  paymentRepo: paymentRepo,
+                                ),
+                                onTap: () =>
+                                    context.push('/suppliers/${supplier.id}'),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           );

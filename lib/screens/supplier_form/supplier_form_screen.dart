@@ -79,6 +79,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _addressController = TextEditingController();
   final _paymentPurposeController = TextEditingController();
   final _recipientController = TextEditingController();
   final _innController = TextEditingController();
@@ -122,6 +123,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
   void dispose() {
     _nameController.dispose();
     _categoryController.dispose();
+    _addressController.dispose();
     _paymentPurposeController.dispose();
     _recipientController.dispose();
     _innController.dispose();
@@ -168,6 +170,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
         _existingSupplier = supplier;
         _nameController.text = supplier.name;
         _categoryController.text = supplier.category ?? '';
+        _addressController.text = supplier.address ?? '';
         _paymentPurposeController.text = supplier.paymentPurposeTemplate ?? '';
         _type = SupplierType.fromDb(supplier.type);
         final bankDetailsJson = supplier.bankDetails;
@@ -301,6 +304,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
             userId: existing.userId,
             name: _nameController.text.trim(),
             category: _emptyToNull(_categoryController.text),
+            address: _emptyToNull(_addressController.text),
             type: _type,
             bankDetails: bankDetails,
             paymentPurposeTemplate: _emptyToNull(_paymentPurposeController.text),
@@ -317,6 +321,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
         supplier = await supplierRepo.create(
           name: _nameController.text.trim(),
           category: _emptyToNull(_categoryController.text),
+          address: _emptyToNull(_addressController.text),
           type: _type,
           bankDetails: bankDetails,
           paymentPurposeTemplate: _emptyToNull(_paymentPurposeController.text),
@@ -510,6 +515,13 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                       controller: _categoryController,
                       decoration: const InputDecoration(
                         labelText: 'Категория (напр. Вода, Электричество)',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: const InputDecoration(
+                        labelText: 'Адрес (напр. Черноморская, Советская)',
                       ),
                     ),
                     const SizedBox(height: 16),

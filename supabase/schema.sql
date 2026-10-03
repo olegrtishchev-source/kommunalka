@@ -26,6 +26,7 @@ create table suppliers (
   reading_methods text[] not null default '{}',
   cabinet_url text,
   reading_email text,
+  address text,
   archived_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

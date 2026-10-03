@@ -22,7 +22,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   /// Очистка локального кеша с последующей повторной загрузкой из облака
   /// (ТЗ §4.8, экран «Настройки») — сама повторная загрузка (refresh() у
@@ -56,6 +56,8 @@ class AppDatabase extends _$AppDatabase {
           //
           // v4 → v5 (Этап 5.8): добавлены поля у Suppliers — personal_account,
           // reading_methods, cabinet_url, reading_email (ТЗ v2.1, §4.11/§4.12).
+          //
+          // v5 → v6 (Этап 5.6): добавлено поле address у Suppliers (ТЗ §4.13).
           for (final table in allTables) {
             await m.deleteTable(table.actualTableName);
           }

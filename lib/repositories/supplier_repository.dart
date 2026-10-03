@@ -61,6 +61,7 @@ class SupplierRepository {
     List<String> readingMethods = const [],
     String? cabinetUrl,
     String? readingEmail,
+    String? address,
   }) async {
     final row = await guardRepositoryCall(
       () => _client
@@ -75,6 +76,7 @@ class SupplierRepository {
             'reading_methods': readingMethods,
             'cabinet_url': cabinetUrl,
             'reading_email': readingEmail,
+            'address': address,
           })
           .select()
           .single(),
@@ -101,6 +103,7 @@ class SupplierRepository {
             'reading_methods': supplier.readingMethods,
             'cabinet_url': supplier.cabinetUrl,
             'reading_email': supplier.readingEmail,
+            'address': supplier.address,
           })
           .eq('id', supplier.id)
           .select()
@@ -156,6 +159,7 @@ class SupplierRepository {
       ),
       cabinetUrl: Value(s.cabinetUrl),
       readingEmail: Value(s.readingEmail),
+      address: Value(s.address),
       archivedAt: Value(s.archivedAt),
       createdAt: Value(s.createdAt),
       updatedAt: Value(s.updatedAt),

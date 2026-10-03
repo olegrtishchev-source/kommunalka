@@ -42,4 +42,14 @@ class SettingsService {
       _prefs.setString(_yandexTokenKey, value);
 
   Future<void> clearYandexAccessToken() => _prefs.remove(_yandexTokenKey);
+
+  static const _selectedAddressKey = 'settings_selected_address';
+
+  /// Выбранный адрес на главном экране (ТЗ §4.13) — чтобы при следующем
+  /// открытии приложения не выбирать заново. null — «Все» (без фильтра).
+  String? get selectedAddress => _prefs.getString(_selectedAddressKey);
+
+  Future<void> setSelectedAddress(String? value) => value == null
+      ? _prefs.remove(_selectedAddressKey)
+      : _prefs.setString(_selectedAddressKey, value);
 }

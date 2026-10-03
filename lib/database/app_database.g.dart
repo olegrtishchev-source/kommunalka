@@ -122,6 +122,17 @@ class $SuppliersTable extends Suppliers
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _addressMeta = const VerificationMeta(
+    'address',
+  );
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+    'address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -168,6 +179,7 @@ class $SuppliersTable extends Suppliers
     readingMethods,
     cabinetUrl,
     readingEmail,
+    address,
     archivedAt,
     createdAt,
     updatedAt,
@@ -270,6 +282,12 @@ class $SuppliersTable extends Suppliers
         ),
       );
     }
+    if (data.containsKey('address')) {
+      context.handle(
+        _addressMeta,
+        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
+      );
+    }
     if (data.containsKey('archived_at')) {
       context.handle(
         _archivedAtMeta,
@@ -345,6 +363,10 @@ class $SuppliersTable extends Suppliers
         DriftSqlType.string,
         data['${effectivePrefix}reading_email'],
       ),
+      address: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}address'],
+      ),
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -385,6 +407,9 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
   final String? readingMethods;
   final String? cabinetUrl;
   final String? readingEmail;
+
+  /// Адрес (объект) поставщика — свободный текст (ТЗ §4.13).
+  final String? address;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -400,6 +425,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     this.readingMethods,
     this.cabinetUrl,
     this.readingEmail,
+    this.address,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -433,6 +459,9 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     }
     if (!nullToAbsent || readingEmail != null) {
       map['reading_email'] = Variable<String>(readingEmail);
+    }
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
     }
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
@@ -469,6 +498,9 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       readingEmail: readingEmail == null && nullToAbsent
           ? const Value.absent()
           : Value(readingEmail),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -496,6 +528,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       readingMethods: serializer.fromJson<String?>(json['readingMethods']),
       cabinetUrl: serializer.fromJson<String?>(json['cabinetUrl']),
       readingEmail: serializer.fromJson<String?>(json['readingEmail']),
+      address: serializer.fromJson<String?>(json['address']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -518,6 +551,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       'readingMethods': serializer.toJson<String?>(readingMethods),
       'cabinetUrl': serializer.toJson<String?>(cabinetUrl),
       'readingEmail': serializer.toJson<String?>(readingEmail),
+      'address': serializer.toJson<String?>(address),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -536,6 +570,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     Value<String?> readingMethods = const Value.absent(),
     Value<String?> cabinetUrl = const Value.absent(),
     Value<String?> readingEmail = const Value.absent(),
+    Value<String?> address = const Value.absent(),
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -557,6 +592,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
         : this.readingMethods,
     cabinetUrl: cabinetUrl.present ? cabinetUrl.value : this.cabinetUrl,
     readingEmail: readingEmail.present ? readingEmail.value : this.readingEmail,
+    address: address.present ? address.value : this.address,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -586,6 +622,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       readingEmail: data.readingEmail.present
           ? data.readingEmail.value
           : this.readingEmail,
+      address: data.address.present ? data.address.value : this.address,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -608,6 +645,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           ..write('readingMethods: $readingMethods, ')
           ..write('cabinetUrl: $cabinetUrl, ')
           ..write('readingEmail: $readingEmail, ')
+          ..write('address: $address, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -628,6 +666,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     readingMethods,
     cabinetUrl,
     readingEmail,
+    address,
     archivedAt,
     createdAt,
     updatedAt,
@@ -647,6 +686,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           other.readingMethods == this.readingMethods &&
           other.cabinetUrl == this.cabinetUrl &&
           other.readingEmail == this.readingEmail &&
+          other.address == this.address &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -664,6 +704,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
   final Value<String?> readingMethods;
   final Value<String?> cabinetUrl;
   final Value<String?> readingEmail;
+  final Value<String?> address;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -680,6 +721,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     this.readingMethods = const Value.absent(),
     this.cabinetUrl = const Value.absent(),
     this.readingEmail = const Value.absent(),
+    this.address = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -697,6 +739,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     this.readingMethods = const Value.absent(),
     this.cabinetUrl = const Value.absent(),
     this.readingEmail = const Value.absent(),
+    this.address = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -719,6 +762,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     Expression<String>? readingMethods,
     Expression<String>? cabinetUrl,
     Expression<String>? readingEmail,
+    Expression<String>? address,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -737,6 +781,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       if (readingMethods != null) 'reading_methods': readingMethods,
       if (cabinetUrl != null) 'cabinet_url': cabinetUrl,
       if (readingEmail != null) 'reading_email': readingEmail,
+      if (address != null) 'address': address,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -756,6 +801,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     Value<String?>? readingMethods,
     Value<String?>? cabinetUrl,
     Value<String?>? readingEmail,
+    Value<String?>? address,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -774,6 +820,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       readingMethods: readingMethods ?? this.readingMethods,
       cabinetUrl: cabinetUrl ?? this.cabinetUrl,
       readingEmail: readingEmail ?? this.readingEmail,
+      address: address ?? this.address,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -819,6 +866,9 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     if (readingEmail.present) {
       map['reading_email'] = Variable<String>(readingEmail.value);
     }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -848,6 +898,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
           ..write('readingMethods: $readingMethods, ')
           ..write('cabinetUrl: $cabinetUrl, ')
           ..write('readingEmail: $readingEmail, ')
+          ..write('address: $address, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -3028,6 +3079,7 @@ typedef $$SuppliersTableCreateCompanionBuilder =
       Value<String?> readingMethods,
       Value<String?> cabinetUrl,
       Value<String?> readingEmail,
+      Value<String?> address,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -3046,6 +3098,7 @@ typedef $$SuppliersTableUpdateCompanionBuilder =
       Value<String?> readingMethods,
       Value<String?> cabinetUrl,
       Value<String?> readingEmail,
+      Value<String?> address,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -3113,6 +3166,11 @@ class $$SuppliersTableFilterComposer
 
   ColumnFilters<String> get readingEmail => $composableBuilder(
     column: $table.readingEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get address => $composableBuilder(
+    column: $table.address,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3196,6 +3254,11 @@ class $$SuppliersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3266,6 +3329,9 @@ class $$SuppliersTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => column,
@@ -3320,6 +3386,7 @@ class $$SuppliersTableTableManager
                 Value<String?> readingMethods = const Value.absent(),
                 Value<String?> cabinetUrl = const Value.absent(),
                 Value<String?> readingEmail = const Value.absent(),
+                Value<String?> address = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -3336,6 +3403,7 @@ class $$SuppliersTableTableManager
                 readingMethods: readingMethods,
                 cabinetUrl: cabinetUrl,
                 readingEmail: readingEmail,
+                address: address,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -3354,6 +3422,7 @@ class $$SuppliersTableTableManager
                 Value<String?> readingMethods = const Value.absent(),
                 Value<String?> cabinetUrl = const Value.absent(),
                 Value<String?> readingEmail = const Value.absent(),
+                Value<String?> address = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -3370,6 +3439,7 @@ class $$SuppliersTableTableManager
                 readingMethods: readingMethods,
                 cabinetUrl: cabinetUrl,
                 readingEmail: readingEmail,
+                address: address,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

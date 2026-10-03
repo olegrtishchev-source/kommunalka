@@ -23,6 +23,8 @@ class Suppliers extends Table {
   TextColumn get readingMethods => text().nullable()();
   TextColumn get cabinetUrl => text().nullable()();
   TextColumn get readingEmail => text().nullable()();
+  /// Адрес (объект) поставщика — свободный текст (ТЗ §4.13).
+  TextColumn get address => text().nullable()();
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();

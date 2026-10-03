@@ -77,6 +77,7 @@ class Supplier {
     this.readingMethods = const [],
     this.cabinetUrl,
     this.readingEmail,
+    this.address,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -93,6 +94,8 @@ class Supplier {
   final List<String> readingMethods;
   final String? cabinetUrl;
   final String? readingEmail;
+  /// Адрес (объект) поставщика — свободный текст, ТЗ §4.13.
+  final String? address;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -117,6 +120,7 @@ class Supplier {
           const [],
       cabinetUrl: json['cabinet_url'] as String?,
       readingEmail: json['reading_email'] as String?,
+      address: json['address'] as String?,
       archivedAt: parseDateOrNull(json['archived_at']),
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),
@@ -136,6 +140,7 @@ class Supplier {
       'reading_methods': readingMethods,
       'cabinet_url': cabinetUrl,
       'reading_email': readingEmail,
+      'address': address,
       'archived_at': archivedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
