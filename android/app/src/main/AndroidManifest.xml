@@ -7,11 +7,16 @@
          работала бы в собранном apk. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <!-- Камера для сканирования QR-кода квитанции (ТЗ §4.11, Этап 5 п. 5.10).
-         По плану разрешение камеры должно было пойти на 6.1 вместе с прочими
-         permissions, но без него сканирование не проверить на устройстве —
-         добавлено здесь, на 6.1 остаётся запись в галерею (для п. 5.12). -->
+    <!-- Камера для сканирования QR-кода квитанции (ТЗ §4.11, Этап 5 п. 5.10). -->
     <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- Запись изображения QR в галерею (ТЗ §4.4, п. 5.12, пакет gal).
+         Нужно только на Android 10 и ниже (API ≤ 29) — начиная с API 30
+         (scoped storage) разрешение не требуется, поэтому ограничено
+         maxSdkVersion, чтобы не запрашивать лишнее на новых устройствах. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"/>
 
     <application
         android:label="kommunalka"
