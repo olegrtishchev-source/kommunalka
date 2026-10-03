@@ -1,17 +1,46 @@
-# kommunalka
+# Коммуналка
 
-A new Flutter project.
+Мобильное приложение для **личного учёта показаний счётчиков и оплаты ЖКУ**.
+Заменяет ручной учёт в Excel и разрозненные квитанции единым инструментом.
 
-## Getting Started
+## Возможности
 
-This project is a starting point for a Flutter application.
+- Карточки поставщиков ЖКУ с реквизитами, тарифами и каналами передачи показаний.
+- Ввод показаний → автоматический расчёт расхода и суммы к оплате.
+- Экран оплаты: реквизиты, расчётная сумма, платёжный QR (ГОСТ Р 56042).
+- Заполнение карточки поставщика сканированием QR из квитанции.
+- Чеки в облачном хранилище, история платежей со статусами.
+- Передача показаний: кнопки «Личный кабинет» / «Письмо» по способу поставщика.
+- Синхронизация с облаком, офлайн-просмотр.
+- Excel-отчёт по месяцу с выгрузкой.
 
-A few resources to get you started if this is your first Flutter project:
+## Стек
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+| Компонент | Решение |
+|---|---|
+| Клиент | Flutter (Dart), Android |
+| БД / синхронизация | Supabase (Postgres + Storage + Auth) |
+| Локальный кеш | drift (SQLite) |
+| Состояние | Riverpod |
+| Навигация | go_router |
+| Отчёты | пакет `excel` |
+| QR | mobile_scanner, qr_flutter |
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Запуск
+
+1. Установить Flutter (stable) и Android SDK.
+2. `flutter pub get`
+3. Настроить доступ к Supabase (URL и ключ проекта).
+4. `flutter run`
+
+## Структура
+
+- `lib/` — исходный код приложения.
+- `supabase/` — схема БД и миграции.
+- `android/` — нативная часть Android.
+- `test/` — тесты.
+
+## Документация
+
+- `ТЗ.md` — техническое задание.
+- `План_выполнения.md` — журнал выполнения по этапам.
