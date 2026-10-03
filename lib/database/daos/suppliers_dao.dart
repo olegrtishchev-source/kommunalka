@@ -15,6 +15,11 @@ class SuppliersDao extends DatabaseAccessor<AppDatabase>
     return (select(suppliers)..where((t) => t.archivedAt.isNull())).watch();
   }
 
+  /// Архивные поставщики (архивированные) — экран «Архив» (п. 5.5.2).
+  Stream<List<SupplierRow>> watchArchived() {
+    return (select(suppliers)..where((t) => t.archivedAt.isNotNull())).watch();
+  }
+
   Stream<List<SupplierRow>> watchAll() => select(suppliers).watch();
 
   Future<SupplierRow?> getById(String id) {

@@ -26,6 +26,9 @@ class SupplierRepository {
   /// Активные (неархивные) поставщики — для главного экрана (ТЗ §4.1).
   Stream<List<SupplierRow>> watchActive() => _dao.watchActive();
 
+  /// Архивные (архивированные) поставщики — для экрана «Архив» (п. 5.5.2).
+  Stream<List<SupplierRow>> watchArchived() => _dao.watchArchived();
+
   /// Все поставщики, включая архивные — для экранов, где архив нужен
   /// (например, история платежей архивного поставщика).
   Stream<List<SupplierRow>> watchAll() => _dao.watchAll();
@@ -115,6 +118,20 @@ class SupplierRepository {
       () => _client
           .from(SupabaseTables.suppliers)
           .update({'archived_at': DateTime.now().toUtc().toIso8601String()})
+          .eq('id', id)
+          .select()
+          .single(),
+    );
+    await _dao.upsert(_toCompanion(Supplier.fromJson(row)));
+  }
+
+  /// Восстановление из архива (п. 5.5.2): очищает archived_at — поставщик
+  /// возвращается в активный список.
+  Future<void> unarchive(String id) async {
+    final row = await guardRepositoryCall(
+      () => _client
+          .from(SupabaseTables.suppliers)
+          .update({'archived_at': null})
           .eq('id', id)
           .select()
           .single(),

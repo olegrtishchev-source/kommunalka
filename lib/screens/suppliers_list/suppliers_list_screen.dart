@@ -74,7 +74,16 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
     final supplierRepo = ref.watch(supplierRepositoryProvider);
     final paymentRepo = ref.watch(paymentRepositoryProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Поставщики')),
+      appBar: AppBar(
+        title: const Text('Поставщики'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.archive_outlined),
+            tooltip: 'Архив',
+            onPressed: () => context.push('/suppliers/archive'),
+          ),
+        ],
+      ),
       body: StreamBuilder<List<SupplierRow>>(
         stream: supplierRepo.watchActive(),
         builder: (context, snapshot) {
@@ -87,38 +96,63 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
               ),
             );
           }
-          return ListView.builder(
-            itemCount: suppliers.length,
-            itemBuilder: (context, index) {
-              final supplier = suppliers[index];
-              return Dismissible(
-                key: ValueKey(supplier.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: const Icon(Icons.archive_outlined),
-                ),
-                confirmDismiss: (_) => _confirmArchive(context, supplier.name),
-                onDismissed: (_) {
-                  ref.read(supplierRepositoryProvider).archive(supplier.id);
-                },
-                child: Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: ListTile(
-                    leading: Icon(iconForSupplierCategory(supplier.category)),
-                    title: Text(supplier.name),
-                    subtitle: supplier.category != null ? Text(supplier.category!) : null,
-                    trailing: _CurrentPeriodBadge(
-                      supplierId: supplier.id,
-                      paymentRepo: paymentRepo,
+          return Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  children: [
+                    Icon(Icons.swipe_left, size: 16),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Свайп влево — убрать поставщика в архив',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
-                    onTap: () => context.push('/suppliers/${supplier.id}'),
-                  ),
+                  ],
                 ),
-              );
-            },
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: suppliers.length,
+                  itemBuilder: (context, index) {
+                    final supplier = suppliers[index];
+                    return Dismissible(
+                      key: ValueKey(supplier.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: const Icon(Icons.archive_outlined),
+                      ),
+                      confirmDismiss: (_) => _confirmArchive(context, supplier.name),
+                      onDismissed: (_) {
+                        ref.read(supplierRepositoryProvider).archive(supplier.id);
+                      },
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        child: ListTile(
+                          leading:
+                              Icon(iconForSupplierCategory(supplier.category)),
+                          title: Text(supplier.name),
+                          subtitle: supplier.category != null
+                              ? Text(supplier.category!)
+                              : null,
+                          trailing: _CurrentPeriodBadge(
+                            supplierId: supplier.id,
+                            paymentRepo: paymentRepo,
+                          ),
+                          onTap: () => context.push('/suppliers/${supplier.id}'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -135,11 +169,25 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
 /// «нет данных» (платёж ещё не создан), либо статус существующего
 /// (ожидает / частично оплачено / оплачено, ТЗ §4.4, §4.6 — цветовой
 /// маркер, чтобы не читать каждую строку).
+///
+/// Тап по бейджу (п. 5.5.1) ведёт сразу к следующему действию: если платёж
+/// за текущий период есть — на экран оплаты, если нет — на ввод показаний.
 class _CurrentPeriodBadge extends StatelessWidget {
   const _CurrentPeriodBadge({required this.supplierId, required this.paymentRepo});
 
   final String supplierId;
   final PaymentRepository paymentRepo;
+
+  Future<void> _goToNextStep(
+    BuildContext context,
+    String? paymentId,
+  ) async {
+    if (paymentId != null) {
+      context.push('/suppliers/$supplierId/payment/$paymentId');
+    } else {
+      context.push('/suppliers/$supplierId/reading');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,19 +204,28 @@ class _CurrentPeriodBadge extends StatelessWidget {
           }
         }
         if (current == null) {
-          return Chip(
-            label: const Text('нет данных'),
-            visualDensity: VisualDensity.compact,
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          return InkWell(
+            onTap: () => _goToNextStep(context, null),
+            borderRadius: BorderRadius.circular(16),
+            child: Chip(
+              label: const Text('нет данных'),
+              visualDensity: VisualDensity.compact,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
           );
         }
         final status = PaymentStatus.fromDb(current.status);
         final (label, color) = paymentStatusLabelAndColor(status);
-        return Chip(
-          label: Text(label),
-          visualDensity: VisualDensity.compact,
-          backgroundColor: color.withValues(alpha: 0.15),
-          side: BorderSide(color: color),
+        final paymentId = current.id;
+        return InkWell(
+          onTap: () => _goToNextStep(context, paymentId),
+          borderRadius: BorderRadius.circular(16),
+          child: Chip(
+            label: Text(label),
+            visualDensity: VisualDensity.compact,
+            backgroundColor: color.withValues(alpha: 0.15),
+            side: BorderSide(color: color),
+          ),
         );
       },
     );

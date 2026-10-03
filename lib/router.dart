@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'providers/auth_provider.dart';
+import 'screens/archive/archive_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/history/history_screen.dart';
 import 'screens/payment/payment_screen.dart';
@@ -73,6 +74,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'new',
                     builder: (context, state) => const SupplierFormScreen(),
+                  ),
+                  GoRoute(
+                    path: 'archive',
+                    builder: (context, state) => const ArchiveScreen(),
                   ),
                   GoRoute(
                     path: ':id',
