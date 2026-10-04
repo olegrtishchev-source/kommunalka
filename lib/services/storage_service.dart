@@ -61,16 +61,31 @@ class StorageService {
 
   /// Загружает уже сжатые байты по указанному пути внутри бакета,
   /// возвращает тот же путь (это и есть Receipt.file_path, ТЗ §7).
-  Future<String> upload(Uint8List bytes, String path) async {
+  /// [contentType] — MIME-тип файла (image/jpeg для фото, application/pdf
+  /// для PDF-чека — ТЗ §4.5).
+  Future<String> upload(
+    Uint8List bytes,
+    String path, {
+    String contentType = 'image/jpeg',
+  }) async {
     await _client.storage.from(_bucket).uploadBinary(
           path,
           bytes,
-          fileOptions: const FileOptions(
-            contentType: 'image/jpeg',
+          fileOptions: FileOptions(
+            contentType: contentType,
             upsert: true,
           ),
         );
     return path;
+  }
+
+  /// Скачивает файл чека из бакета по пути [path] — нужно для копирования
+  /// чеков на Яндекс.Диск при формировании отчёта (Этап 5.7).
+  Future<Uint8List> download(String path) {
+    return _client.storage
+        .from(_bucket)
+        .download(path)
+        .timeout(const Duration(seconds: 30));
   }
 
   /// Временная подписанная ссылка на файл — бакет приватный (ТЗ §5:

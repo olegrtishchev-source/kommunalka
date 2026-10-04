@@ -40,7 +40,11 @@ String buildPaymentQr(
   }
 
   final kopecks = (payment.calculatedAmount * 100).round();
-  final purpose = _buildPurpose(supplier.paymentPurposeTemplate, payment.period);
+  final purpose = _buildPurpose(
+    supplier.paymentPurposeTemplate,
+    payment.period,
+    fallback: supplier.category ?? supplier.name,
+  );
 
   final parts = <String>['ST00012'];
   void add(String key, String? value) {
@@ -88,9 +92,11 @@ const _monthNames = [
 ];
 
 /// Подставляет в шаблон назначения платежа `{месяц}` и `{год}` из периода
-/// (напр. «оплата за {месяц} {год}» → «оплата за Сентябрь 2026»).
-String _buildPurpose(String? template, DateTime period) {
-  if (template == null || template.isEmpty) return '';
+/// (напр. «оплата за {месяц} {год}» → «оплата за Сентябрь 2026»). Если шаблона
+/// нет — подставляется [fallback] (категория или имя поставщика), чтобы
+/// «Назначение платежа» в банковской форме никогда не было пустым (ТЗ §4.4).
+String _buildPurpose(String? template, DateTime period, {required String fallback}) {
+  if (template == null || template.isEmpty) return fallback;
   return template
       .replaceAll('{месяц}', _monthNames[period.month - 1])
       .replaceAll('{год}', '${period.year}');

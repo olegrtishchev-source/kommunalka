@@ -81,7 +81,7 @@ void main() {
       );
     });
 
-    test('только обязательные поля — необязательные отсутствуют', () {
+    test('только обязательные поля — необязательные отсутствуют (кроме Purpose)', () {
       final qr = buildPaymentQr(
         supplier(bankDetails: details()),
         payment(100.0),
@@ -89,7 +89,7 @@ void main() {
       expect(
         qr,
         'ST00012|Name=ООО Тест|PersonalAcc=40702810000000000000|'
-        'BIC=044525225|PayeeINN=7707083893|Sum=10000',
+        'BIC=044525225|PayeeINN=7707083893|Sum=10000|Purpose=Тест',
       );
     });
 
@@ -112,12 +112,13 @@ void main() {
       expect(qr, isNot(contains('|Сервис|')));
     });
 
-    test('нет шаблона назначения — Purpose отсутствует', () {
+    test('нет шаблона назначения — Purpose = имя поставщика (fallback)', () {
       final qr = buildPaymentQr(
         supplier(bankDetails: details()),
         payment(50.0),
       );
-      expect(qr, isNot(contains('Purpose')));
+      // category не задан → fallback = name («Тест»).
+      expect(qr, contains('Purpose=Тест'));
     });
 
     test('не хватает обязательных реквизитов → ArgumentError', () {

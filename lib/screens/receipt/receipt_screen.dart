@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,11 +15,10 @@ import '../../utils/date_format.dart';
 /// (4.6/4.7). Можно прикрепить больше одного файла — ТЗ не ограничивает
 /// количество на платёж.
 ///
-/// Фото — с камеры или из галереи (image_picker); сжатие до ~500 КБ и
-/// загрузка в приватный бакет Storage — уже готовы в ReceiptRepository
-/// (Этап 3.8). Прикрепление произвольного файла (например, PDF-квитанции)
-/// не входит — StorageService.compress() ожидает именно изображение;
-/// если понадобится, добавим отдельным путём без сжатия через compress().
+/// Фото — с камеры или из галереи (image_picker); PDF-чек (его выдаёт
+/// банковское приложение) — из файловой системы (file_picker, Этап 5.8).
+/// Сжатие до ~500 КБ и загрузка в приватный бакет Storage — в
+/// ReceiptRepository (Этап 3.8); PDF не сжимается (грузится как есть).
 class ReceiptScreen extends ConsumerStatefulWidget {
   const ReceiptScreen({super.key, required this.paymentId});
 
@@ -50,7 +50,32 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
       final bytes = await file.readAsBytes();
       await ref.read(receiptRepositoryProvider).attach(
             paymentId: widget.paymentId,
-            imageBytes: bytes,
+            bytes: bytes,
+          );
+    } catch (e) {
+      setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  /// Прикрепление PDF-чека из файловой системы (банк выдаёт чек в PDF).
+  Future<void> _pickPdf() async {
+    final files = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (files.isEmpty) return; // пользователь отменил выбор
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+    try {
+      final bytes = await files.first.readAsBytes();
+      await ref.read(receiptRepositoryProvider).attach(
+            paymentId: widget.paymentId,
+            bytes: bytes,
+            isPdf: true,
           );
     } catch (e) {
       setState(() => _error = '$e');
@@ -107,6 +132,15 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _uploading ? null : _pickPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                label: const Text('Файл (PDF)'),
+              ),
             ),
             if (_uploading) ...[
               const SizedBox(height: 16),

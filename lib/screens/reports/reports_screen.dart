@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../database/app_database.dart';
 import '../../models/payment.dart';
@@ -14,10 +15,11 @@ import '../../providers/settings_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../providers/yandex_disk_provider.dart';
 import '../../services/excel_report_service.dart';
+import '../../services/yandex_disk_service.dart';
 import '../../utils/date_format.dart';
 
 /// Отчёты (ТЗ §4.10) — вкладка «Отчёты» нижней навигации (4.9). Выбор
-/// периода, статус авторизации Яндекс.Диска, кнопка «Сформировать и
+/// периода, статус авторизации Яндекс Диска, кнопка «Сформировать и
 /// выгрузить».
 ///
 /// Сборка данных отчёта (Supplier/Payment из PaymentRow/SupplierRow,
@@ -38,6 +40,16 @@ class ReportsScreen extends ConsumerStatefulWidget {
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   static const _yandexFolderPath = '/Коммуналка';
 
+  static const _monthNames = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+  ];
+
+  /// Папка периода на Диске — «/Коммуналка/<Месяц>_<Год>», напр.
+  /// «/Коммуналка/Октябрь_2026» (Этап 5.7).
+  String get _periodFolderPath =>
+      '$_yandexFolderPath/${_monthNames[_period.month - 1]}_${_period.year}';
+
   late DateTime _period;
   String? _yandexToken;
   bool _loadingToken = true;
@@ -45,6 +57,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   bool _generating = false;
   String? _error;
   String? _successMessage;
+  /// Прогресс копирования чеков на Диск (Этап 5.7) — показывается во время
+  /// выгрузки: «Копирую чеки: N из M».
+  String? _copyProgress;
+
+  /// Публичная ссылка на файл последнего выгруженного отчёта — по нажатию
+  /// на запись об отчёте открывается в браузере/приложении Яндекс Диска.
+  String? _lastReportUrl;
 
   @override
   void initState() {
@@ -169,14 +188,51 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
+  /// Очищает имя поставщика от символов, недопустимых в имени файла.
+  String _safeFileName(String name) =>
+      name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+
+  /// Открывает ссылку во внешнем браузере/приложении (Яндекс Диск и т.п.).
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// Пытается получить публичную ссылку на файл (publish + public_url — она
+  /// открывает сам файл). Если у токена нет прав на чтение метаданных
+  /// (403 Forbidden — приложению не выдано «Чтение всего Диска»), откатывается
+  /// на клиентскую ссылку (открывает файл в приложении Диска у владельца).
+  Future<String> _publicOrFallbackUrl(
+    YandexDiskService yandex,
+    String token,
+    String remotePath,
+  ) async {
+    try {
+      return await yandex.getPublicUrl(
+        accessToken: token,
+        remotePath: remotePath,
+      );
+    } catch (e) {
+      debugPrint('[Отчёт] публичная ссылка недоступна ($e), '
+          'использую клиентскую ссылку');
+      return yandex.fileClientUrl(remotePath);
+    }
+  }
+
+  String _two(int n) => n.toString().padLeft(2, '0');
+
   Future<void> _generateAndUpload() async {
     final token = _yandexToken;
     if (token == null) return;
     setState(() {
       _generating = true;
       _error = null;
-      _successMessage = null;
     });
+    // _successMessage НЕ сбрасываем здесь: если пользователь нажмёт
+    // «Отмена» в диалоге закрытия месяца, прежняя запись об отчёте должна
+    // остаться на экране (баг 2.2).
     try {
       final supplierRepo = ref.read(supplierRepositoryProvider);
       final paymentRepo = ref.read(paymentRepositoryProvider);
@@ -204,33 +260,92 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         final proceed = await _confirmCloseMonth(
           missing.map((s) => s.name).toList(),
         );
-        if (proceed != true) return;
+        if (proceed != true) {
+          // Отмена — не трогаем прежнюю запись об отчёте и не запускаем
+          // выгрузку.
+          if (mounted) setState(() => _generating = false);
+          return;
+        }
       }
 
-      final rows = <ExcelReportRow>[];
-      for (final paymentRow in periodPayments) {
-        final supplierRow = suppliersById[paymentRow.supplierId];
-        if (supplierRow == null) continue;
+      // Пользователь подтвердил выгрузку — теперь можно сбросить прежнее
+      // сообщение об отчёте.
+      if (mounted) setState(() => _successMessage = null);
 
-        final receipts = await receiptRepo.watchForPayment(paymentRow.id).first;
+      // Сначала соберём чеки периода (для копирования на Диск) и строки
+      // отчёта. Чеки скачиваются из Supabase Storage, копируются в папку
+      // периода на Диске (Этап 5.7); ссылка в Excel ведёт на Диск (постоянная).
+      final validPayments = periodPayments
+          .where((p) => suppliersById[p.supplierId]?.archivedAt == null)
+          .toList();
+
+      // Все чеки выбранных платежей (можно несколько на платёж).
+      final rows = <ExcelReportRow>[];
+      var copiedCount = 0;
+      for (final paymentRow in validPayments) {
+        final supplierRow = suppliersById[paymentRow.supplierId]!;
+        final supplier = _supplierFromRow(supplierRow);
+        final payment = _paymentFromRow(paymentRow);
+
+        final receipts =
+            await receiptRepo.watchForPayment(paymentRow.id).first;
         String? receiptUrl;
-        if (receipts.isNotEmpty) {
-          final receipt = receipts.first;
-          receiptUrl = await receiptRepo.getUrl(
-            Receipt(
-              id: receipt.id,
-              paymentId: receipt.paymentId,
-              filePath: receipt.filePath,
-              createdAt: receipt.createdAt,
-            ),
-            expiresInSeconds: 30 * 24 * 3600,
-          );
+        // Копируем чеки на Диск в папку периода и берём публичную ссылку
+        // (на файл, а не на папку) для отчёта. Если чеков несколько —
+        // предпочитаем PDF. Ошибка копирования одного чека не срывает отчёт.
+        final yandex = ref.read(yandexDiskServiceProvider);
+        for (var i = 0; i < receipts.length; i++) {
+          final receipt = receipts[i];
+          final isPdf = receipt.filePath.toLowerCase().endsWith('.pdf');
+          final ext = isPdf ? 'pdf' : 'jpg';
+          final suffix = receipts.length > 1 ? '_${i + 1}' : '';
+          final fileName =
+              'Чек_${_safeFileName(supplierRow.name)}_'
+              '${_two(paymentRow.paymentDate?.day ?? paymentRow.period.day)}.'
+              '${_two(paymentRow.paymentDate?.month ?? paymentRow.period.month)}.'
+              '${paymentRow.paymentDate?.year ?? paymentRow.period.year}'
+              '$suffix.$ext';
+          final remotePath = '$_periodFolderPath/$fileName';
+          try {
+            final bytes = await receiptRepo.download(
+              Receipt(
+                id: receipt.id,
+                paymentId: receipt.paymentId,
+                filePath: receipt.filePath,
+                createdAt: receipt.createdAt,
+              ),
+            );
+            await yandex.uploadFile(
+              accessToken: token,
+              folderPath: _periodFolderPath,
+              fileName: fileName,
+              bytes: bytes,
+            );
+            final publicUrl = await _publicOrFallbackUrl(
+              yandex,
+              token,
+              remotePath,
+            );
+            copiedCount++;
+            if (mounted) {
+              setState(() => _copyProgress = 'Копирую чеки: $copiedCount');
+            }
+            // PDF-чек приоритетнее для ссылки в отчёте.
+            if (receiptUrl == null || isPdf) {
+              receiptUrl = publicUrl;
+            }
+          } catch (e) {
+            // копирование чека не критично для отчёта — пропускаем, но
+            // пишем причину в лог.
+            debugPrint('[Отчёт] ОШИБКА копирования чека '
+                '(${supplierRow.name}, $fileName): $e');
+          }
         }
 
         rows.add(
           ExcelReportRow.fromPaymentAndSupplier(
-            _supplierFromRow(supplierRow),
-            _paymentFromRow(paymentRow),
+            supplier,
+            payment,
             receiptUrl: receiptUrl,
           ),
         );
@@ -240,15 +355,27 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final bytes = excelService.generate(period: _period, rows: rows);
       final fileName = excelService.suggestedFileName(_period);
 
-      await ref.read(yandexDiskServiceProvider).uploadFile(
+      final yandexSvc = ref.read(yandexDiskServiceProvider);
+      await yandexSvc.uploadFile(
             accessToken: token,
-            folderPath: _yandexFolderPath,
+            folderPath: _periodFolderPath,
             fileName: fileName,
             bytes: bytes,
           );
 
+      // Ссылка на сам файл отчёта (кликабельна на экране).
+      final reportUrl = await _publicOrFallbackUrl(
+        yandexSvc,
+        token,
+        '$_periodFolderPath/$fileName',
+      );
+
       if (!mounted) return;
-      setState(() => _successMessage = 'Отчёт «$fileName» выгружен на Яндекс.Диск.');
+      setState(() {
+        _copyProgress = null;
+        _lastReportUrl = reportUrl;
+        _successMessage = 'Отчёт «$fileName» выгружен на Яндекс Диск';
+      });
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
@@ -274,7 +401,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            Text('Яндекс.Диск', style: Theme.of(context).textTheme.titleSmall),
+            Text('Яндекс Диск', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             if (_loadingToken)
               const CircularProgressIndicator()
@@ -282,25 +409,56 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               OutlinedButton.icon(
                 onPressed: _connecting ? null : _connectYandex,
                 icon: const Icon(Icons.login),
-                label: Text(_connecting ? 'Вход...' : 'Войти в Яндекс.Диск'),
+                label: Text(_connecting ? 'Вход...' : 'Войти в Яндекс Диск'),
               )
-            else
+            else ...[
               Row(
                 children: [
                   const Icon(Icons.check_circle, color: Colors.green, size: 18),
                   const SizedBox(width: 8),
                   const Text('Подключён'),
                   const Spacer(),
-                  TextButton(onPressed: _disconnectYandex, child: const Text('Отключить')),
+                  TextButton(
+                    onPressed: _disconnectYandex,
+                    child: const Text('Отключить'),
+                  ),
                 ],
               ),
+              const SizedBox(height: 4),
+              // Кликабельная ссылка на папку периода на Диске (открывается
+              // во внешнем приложении/браузере Яндекс Диска).
+              OutlinedButton.icon(
+                onPressed: () => _openUrl(
+                  ref.read(yandexDiskServiceProvider).fileClientUrl(_periodFolderPath),
+                ),
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('Открыть папку на Диске'),
+              ),
+            ],
             const SizedBox(height: 24),
             if (_error != null) ...[
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
               const SizedBox(height: 12),
             ],
             if (_successMessage != null) ...[
-              Text(_successMessage!, style: const TextStyle(color: Colors.green)),
+              if (_lastReportUrl != null)
+                InkWell(
+                  onTap: () => _openUrl(_lastReportUrl!),
+                  child: Text(
+                    _successMessage!,
+                    style: const TextStyle(
+                      color: Colors.green,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.green,
+                    ),
+                  ),
+                )
+              else
+                Text(_successMessage!, style: const TextStyle(color: Colors.green)),
+              const SizedBox(height: 12),
+            ],
+            if (_copyProgress != null) ...[
+              Text(_copyProgress!, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 12),
             ],
             FilledButton.icon(

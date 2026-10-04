@@ -52,15 +52,32 @@ class ReceiptRepository {
   /// одного платежа одного пользователя практически не бывает.
   Future<Receipt> attach({
     required String paymentId,
-    required Uint8List imageBytes,
+    required Uint8List bytes,
+    bool isPdf = false,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
       throw StateError('Нет авторизованного пользователя — чек не может быть загружен.');
     }
-    final compressed = _storage.compress(imageBytes);
-    final path = '$userId/$paymentId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await guardRepositoryCall(() => _storage.upload(compressed, path));
+    // PDF не сжимаем (чек из банка и так компактный, а сжатие картинки к
+    // нему неприменимо) — грузим как есть; фото сжимаем (ТЗ §4.5).
+    final Uint8List toUpload;
+    final String extension;
+    final String contentType;
+    if (isPdf) {
+      toUpload = bytes;
+      extension = 'pdf';
+      contentType = 'application/pdf';
+    } else {
+      toUpload = _storage.compress(bytes);
+      extension = 'jpg';
+      contentType = 'image/jpeg';
+    }
+    final path =
+        '$userId/$paymentId/${DateTime.now().millisecondsSinceEpoch}.$extension';
+    await guardRepositoryCall(
+      () => _storage.upload(toUpload, path, contentType: contentType),
+    );
 
     final row = await guardRepositoryCall(
       () => _client
@@ -72,6 +89,11 @@ class ReceiptRepository {
     final receipt = Receipt.fromJson(row);
     await _dao.upsert(_toCompanion(receipt));
     return receipt;
+  }
+
+  /// Скачивает файл чека из Storage (Этап 5.7 — копирование на Яндекс.Диск).
+  Future<Uint8List> download(Receipt receipt) {
+    return guardRepositoryCall(() => _storage.download(receipt.filePath));
   }
 
   /// Кликабельная ссылка на файл чека (ТЗ §4.5) — подписанная, бакет
