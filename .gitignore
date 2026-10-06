@@ -55,7 +55,14 @@ app.*.map.json
 analyze_out.txt
 test_out.txt
 run_out.txt
+run_emu.txt
+run_dev.txt
 filter_out.txt
+emulator_out.txt
+sdk_list.txt
+sdk_install.txt
+avd_create.txt
 dev_db.sqlite
 screencap*.png
 _inspect_db.py
+_*.bat

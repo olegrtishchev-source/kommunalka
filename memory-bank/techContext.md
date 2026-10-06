@@ -28,6 +28,16 @@
 - Устройство в `flutter run`: id `e11a40c1` (M2101K6G, Xiaomi). При обрыве ADB: `adb kill-server; adb start-server`.
 - Дамп локальной БД с устройства (для диагностики): `adb exec-out run-as ru.rtishchev.kommunalka cat app_flutter/kommunalka_local.sqlite > dev_db.sqlite` (через `cmd /c` — PowerShell портит бинарь). Читать через Python `sqlite3`. Файл `dev_db.sqlite` в `.gitignore`.
 
+## Тестовые устройства (эмулятор + физическое)
+- **Физическое:** `e11a40c1` (M2101K6G, Xiaomi, Android 13/API 33, arm64).
+- **Эмулятор:** `emulator-5554` (AVD `kommunalka_api33`, Pixel 5, Android 13/API 33, x86_64) — та же версия Android → идентичное поведение.
+- **Хелперы** (`tools/`): `emulator-start.bat`, `emulator-stop.bat`, `run-emulator.bat`, `run-device.bat`, `devices.bat`; инструкция — `tools/README.md`.
+- Переключение таргетов: `flutter run -d <id>` (соберёт под нужную архитектуру сам; между arm64↔x64 пересборка).
+- **JAVA_HOME** глобально не задан — для `avdmanager`/`sdkmanager`/`emulator` задаётся локально в скриптах как `C:\Program Files\Android\Android Studio\jbr` (JBR, JDK 25).
+- Установка system-image: `sdkmanager "system-images;android-33;google_apis;x86_64"` (нужен JAVA_HOME).
+- Создание AVD: `avdmanager create avd --name kommunalka_api33 --package "system-images;android-33;google_apis;x86_64" --device pixel_5`.
+- Хост: AMD64, Hyper-V/WHPX доступен (аппаратное ускорение эмулятора работает).
+
 ## Ключевые файлы
 - `supabase/schema.sql` (схема + RLS), `supabase/migration_5.6.sql` (поле address), `supabase/migration_5.8.sql` — применены Олегом.
 - `ТЗ.md`, `План_выполнения.md` — спецификация и журнал.

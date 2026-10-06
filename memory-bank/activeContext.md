@@ -54,4 +54,5 @@
 - Этап 5.9 закоммичен и запушен: `bfa5b74` (5.9 + таймаут-клиент + удаление + доработки отчёта), `f2ee526` (хеш в памяти), `c6703c4` (6.2: оплата и скан QR). `main` = `origin/main`, рабочая копия чистая.
 - Untracked/закоммичено: `memory-bank/` — теперь в git; временные артефакты (`*_out.txt`, `dev_db.sqlite`, `screencap*.png`, `_inspect_db.py`) в `.gitignore`.
 - Для старта: подключить Xiaomi по USB (`adb devices` → `e11a40c1`), `flutter run -d e11a40c1`; логи в `run_out.txt`. При обрыве ADB: `adb kill-server; adb start-server`.
+- **Настроен эмулятор для тестов (07.10.2026):** AVD `kommunalka_api33` (Pixel 5, Android 13/API 33, x86_64) + `tools/emulator-start.bat` и др. (`tools/README.md`). Физ. устройство `e11a40c1` остаётся доступным — переключение через `flutter run -d <id>`. Приложение запускается и на эмуляторе, и на физ. устройстве.
 - Осталось по 6.2: «без показаний», передача показаний, офлайн.
