@@ -4,10 +4,32 @@ import 'package:drift/drift.dart' show Value;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../database/app_database.dart';
+import '../database/daos/channels_dao.dart';
+import '../database/daos/payments_dao.dart';
+import '../database/daos/readings_dao.dart';
+import '../database/daos/receipts_dao.dart';
 import '../database/daos/suppliers_dao.dart';
 import '../models/supplier.dart';
+import '../services/storage_service.dart';
 import '../services/supabase_tables.dart';
 import 'repository_exceptions.dart';
+
+/// Сколько связанных данных будет удалено при полном удалении поставщика —
+/// показывается в предупреждении перед необратимым действием.
+class SupplierDeletionImpact {
+  SupplierDeletionImpact({
+    required this.payments,
+    required this.receipts,
+  });
+
+  /// Платежей (за все периоды).
+  final int payments;
+
+  /// Чеков (файлов будет удалено столько же).
+  final int receipts;
+
+  bool get isEmpty => payments == 0 && receipts == 0;
+}
 
 /// Поставщики: чтение — из локального кеша (drift, реактивно), запись —
 /// сначала в Supabase (источник истины, ТЗ §4.7 — создание требует сети),
@@ -18,10 +40,23 @@ import 'repository_exceptions.dart';
 /// через guardRepositoryCall (Этап 3.9, lib/repositories/repository_exceptions.dart) —
 /// экраны (Этап 4) ловят эти два типа вместо разбора сырых исключений Supabase.
 class SupplierRepository {
-  SupplierRepository(this._client, this._dao);
+  SupplierRepository(
+    this._client,
+    this._dao,
+    this._channelsDao,
+    this._readingsDao,
+    this._paymentsDao,
+    this._receiptsDao,
+    this._storage,
+  );
 
   final SupabaseClient _client;
   final SuppliersDao _dao;
+  final ChannelsDao _channelsDao;
+  final ReadingsDao _readingsDao;
+  final PaymentsDao _paymentsDao;
+  final ReceiptsDao _receiptsDao;
+  final StorageService _storage;
 
   /// Активные (неархивные) поставщики — для главного экрана (ТЗ §4.1).
   Stream<List<SupplierRow>> watchActive() => _dao.watchActive();
@@ -140,6 +175,82 @@ class SupplierRepository {
           .single(),
     );
     await _dao.upsert(_toCompanion(Supplier.fromJson(row)));
+  }
+
+  /// Оценивает, сколько связанных данных будет удалено при полном удалении
+  /// поставщика — для предупреждения в UI. Считает по локальному кешу.
+  Future<SupplierDeletionImpact> deletionImpact(String supplierId) async {
+    final payments = await _paymentsDao.getForSupplier(supplierId);
+    var receipts = 0;
+    for (final payment in payments) {
+      receipts += (await _receiptsDao.getForPayment(payment.id)).length;
+    }
+    return SupplierDeletionImpact(payments: payments.length, receipts: receipts);
+  }
+
+  /// Полное (необратимое) удаление поставщика и всех связанных данных:
+  /// показания, каналы, платежи, чеки (записи и файлы в Storage).
+  ///
+  /// Порядок важен из-за ограничений БД (supabase/schema.sql):
+  /// readings.channel_id — ON DELETE RESTRICT, поэтому показания удаляются
+  /// первыми, иначе удаление каналов/поставщика блокируется. Остальные связи
+  /// (channels→supplier, payments→supplier, receipts→payment) — CASCADE,
+  /// но удаляем явно, чтобы синхронно почистить и локальный кеш, и файлы
+  /// чеков в Storage (каскад БД их не трогает).
+  Future<void> deleteCompletely(String supplierId) async {
+    final channels = await _channelsDao.watchForSupplier(supplierId).first;
+    final payments = await _paymentsDao.getForSupplier(supplierId);
+
+    // Собираем пути файлов чеков, чтобы удалить их из Storage.
+    final receiptPaths = <String>[];
+    for (final payment in payments) {
+      final receipts = await _receiptsDao.getForPayment(payment.id);
+      receiptPaths.addAll(receipts.map((r) => r.filePath));
+    }
+
+    // Supabase (источник истины) — порядок под ограничения FK.
+    await guardRepositoryCall(() async {
+      for (final channel in channels) {
+        await _client.from(SupabaseTables.readings).delete().eq(
+              'channel_id',
+              channel.id,
+            );
+      }
+      for (final payment in payments) {
+        await _client.from(SupabaseTables.receipts).delete().eq(
+              'payment_id',
+              payment.id,
+            );
+      }
+      await _client.from(SupabaseTables.payments).delete().eq(
+            'supplier_id',
+            supplierId,
+          );
+      await _client.from(SupabaseTables.channels).delete().eq(
+            'supplier_id',
+            supplierId,
+          );
+      await _client.from(SupabaseTables.suppliers).delete().eq(
+            'id',
+            supplierId,
+          );
+    });
+
+    // Файлы чеков в Storage — после успешного удаления записей.
+    await guardRepositoryCall(() => _storage.remove(receiptPaths));
+
+    // Локальный кеш.
+    for (final channel in channels) {
+      await _readingsDao.deleteForChannel(channel.id);
+    }
+    for (final payment in payments) {
+      await _receiptsDao.deleteForPayment(payment.id);
+      await _paymentsDao.deleteById(payment.id);
+    }
+    for (final channel in channels) {
+      await _channelsDao.deleteById(channel.id);
+    }
+    await _dao.deleteById(supplierId);
   }
 
   SuppliersCompanion _toCompanion(Supplier s) {

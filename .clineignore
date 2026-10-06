@@ -1,0 +1,84 @@
+# ============================================
+# .clineignore для проекта kommunalka (Flutter/Android)
+# Цель: не тратить токены на артефакты сборки,
+# зависимости и сгенерированный код, который
+# Cline всё равно не должен читать вручную.
+# ============================================
+
+# --- Flutter / Dart ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# --- Android ---
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/key.properties
+android/app/release/
+android/app/debug/
+android/app/profile/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# --- Зависимости ---
+node_modules/
+**/node_modules/
+
+# --- Python (на случай, если в проекте есть скрипты) ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# --- Git ---
+.git/
+.gitignore
+
+# --- Секреты и окружение ---
+.env
+.env.*
+*.env
+
+# --- Данные и БД ---
+*.db
+*.sqlite
+*.sqlite3
+*.xlsx
+*.csv
+
+# --- Логи и временные файлы ---
+*.log
+tmp/
+temp/
+.cache/
+
+# --- Файлы, которые Cline не должен трогать без явной просьбы ---
+pubspec.lock
+justfile
+README.md
+
+# --- Специфичное для kommunalka ---
+# Схемы Supabase и миграции оставляем видимыми —
+# Cline должен видеть их, когда речь о данных.
+# supabase/schema.sql
+# supabase/storage.sql
+# supabase/migration_5.8.sql

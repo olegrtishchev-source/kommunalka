@@ -3,6 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'router.dart';
 
+/// Глобальный ключ мессенджера — SnackBar показывается поверх всего, включая
+/// открытые диалоги (например, подтверждение сохранения QR в галерею, когда
+/// диалог с QR ещё открыт). Обычный `ScaffoldMessenger.of(context)` рисует
+/// SnackBar на своём Scaffold — под диалогом, и его не видно.
+final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 /// MaterialApp.router + go_router (ТЗ, Этап 2.4 плана — структура папок).
 /// Базовая тема (ТЗ §4.9, §5 — минималистичный интерфейс): Material 3,
 /// цветовая схема из одного seed-цвета — при желании поменять фирменный
@@ -15,6 +21,7 @@ class KommunalkaApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'Коммуналка',
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),

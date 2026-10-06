@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'services/timeout_http_client.dart';
 
 /// Publishable key безопасен для клиентского кода (не секрет).
 const supabaseUrl = 'https://jvroshiynvwrjzzztfsx.supabase.co';
@@ -19,6 +20,12 @@ const yandexRedirectUri = 'kommunalka://oauth2redirect';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
+  await Supabase.initialize(
+    url: supabaseUrl,
+    publishableKey: supabasePublishableKey,
+    // Таймаут на каждый запрос — иначе при «зависшем» соединении экраны
+    // навсегда остаются на индикаторе загрузки (см. TimeoutHttpClient).
+    httpClient: TimeoutHttpClient(),
+  );
   runApp(const ProviderScope(child: KommunalkaApp()));
 }

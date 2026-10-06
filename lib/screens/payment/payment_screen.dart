@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../database/app_database.dart';
+import '../../app.dart';
 import '../../models/payment.dart';
 import '../../models/supplier.dart';
 import '../../providers/payment_provider.dart';
@@ -261,13 +262,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         name: _qrFileName(),
         album: _qrAlbum(),
       );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
         const SnackBar(content: Text('QR сохранён в галерею.')),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(content: Text('Не удалось сохранить QR: $e')),
       );
     }
@@ -284,8 +283,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(content: Text('Не удалось поделиться QR: $e')),
       );
     }
@@ -296,7 +294,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     final snapshot = payment.readingSnapshot;
     if (snapshot == null || snapshot.isEmpty) return '';
     return snapshot
-        .map((e) => '${e.channelName}: ${e.currentValue} ${e.unit}')
+        .map((e) => '${e.channelName}: ${formatReading(e.currentValue)} ${e.unit}')
         .join('\n');
   }
 
@@ -376,6 +374,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
               .toList(),
       cabinetUrl: r.cabinetUrl,
       readingEmail: r.readingEmail,
+      address: r.address,
       archivedAt: r.archivedAt,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,

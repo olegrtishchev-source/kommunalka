@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:excel/excel.dart';
 
 import '../models/payment.dart';
 import '../models/supplier.dart';
+import '../utils/amount_format.dart';
 import '../utils/json_parsing.dart';
 
 /// Одна строка Excel-отчёта (ТЗ §4.10) — уже готовые для показа значения,
@@ -14,6 +17,7 @@ import '../utils/json_parsing.dart';
 class ExcelReportRow {
   const ExcelReportRow({
     required this.supplierName,
+    this.address,
     this.currentText,
     this.previousText,
     this.consumption,
@@ -26,6 +30,8 @@ class ExcelReportRow {
   });
 
   final String supplierName;
+  /// Адрес (объект) поставщика — ТЗ §4.13. null/пусто — адрес не задан.
+  final String? address;
   /// null — поставщик без показаний (ТЗ §4.10: колонки Текущие/
   /// Предыдущие/Тариф остаются пустыми). Текст, а не число — у поставщика
   /// может быть несколько каналов (ТЗ §4.1), тогда значения нескольких
@@ -53,9 +59,13 @@ class ExcelReportRow {
     final snapshot = payment.readingSnapshot;
     return ExcelReportRow(
       supplierName: supplier.name,
+      address: supplier.address,
       currentText: _formatChannelValues(snapshot, (e) => e.currentValue),
       previousText: _formatChannelValues(snapshot, (e) => e.previousValue),
-      consumption: payment.consumption,
+      // Старые платежи (до исправления) были сохранены с consumption = null,
+      // хотя reading_snapshot у них есть — восстанавливаем расход из снимка,
+      // чтобы отчёт по таким платежам не терял колонку «Расход».
+      consumption: payment.consumption ?? _consumptionFromSnapshot(snapshot),
       tariffText: _formatChannelValues(snapshot, (e) => e.tariff),
       calculatedAmount: payment.calculatedAmount,
       actualAmount: payment.actualAmount,
@@ -71,8 +81,19 @@ String? _formatChannelValues(
   double Function(ReadingSnapshotEntry) pick,
 ) {
   if (snapshot == null || snapshot.isEmpty) return null;
-  if (snapshot.length == 1) return pick(snapshot.first).toString();
-  return snapshot.map((e) => '${e.channelName}: ${pick(e)}').join('; ');
+  if (snapshot.length == 1) return formatReading(pick(snapshot.first));
+  return snapshot
+      .map((e) => '${e.channelName}: ${formatReading(pick(e))}')
+      .join('; ');
+}
+
+/// Восстанавливает суммарный расход из снимка показаний (Σ current −
+/// previous) для старых платежей, где `consumption` не был сохранён.
+/// null/пустой снимок (поставщик без показаний) → null, чтобы колонка
+/// «Расход» осталась пустой.
+double? _consumptionFromSnapshot(List<ReadingSnapshotEntry>? snapshot) {
+  if (snapshot == null || snapshot.isEmpty) return null;
+  return snapshot.fold<double>(0, (sum, e) => sum + e.consumption);
 }
 
 /// Формирование Excel-отчёта по платежам за период (ТЗ §4.10). Только
@@ -81,6 +102,7 @@ String? _formatChannelValues(
 class ExcelReportService {
   static const _headers = [
     'Поставщик',
+    'Адрес',
     'Текущие',
     'Предыдущие',
     'Расход',
@@ -136,22 +158,34 @@ class ExcelReportService {
 
     var totalActual = 0.0;
     for (final row in rows) {
-      final paidStyle = row.status == PaymentStatus.paid
-          ? CellStyle(backgroundColorHex: ExcelColor.fromHexString('#C6EFCE'))
-          : null;
-      _writeRow(sheet, rowIndex, _rowToCells(row), style: paidStyle);
+      _writeRow(sheet, rowIndex, _rowToCells(row));
+      // Заливка — только ячейка «Статус» (последняя колонка) и только для
+      // «оплачено»; остальные ячейки и остальные статусы остаются белыми.
+      if (row.status == PaymentStatus.paid) {
+        sheet
+            .cell(
+              CellIndex.indexByColumnRow(
+                columnIndex: _headers.length - 1,
+                rowIndex: rowIndex,
+              ),
+            )
+            .cellStyle = CellStyle(
+          backgroundColorHex: ExcelColor.fromHexString('#C6EFCE'),
+        );
+      }
       rowIndex++;
       totalActual += row.actualAmount ?? 0;
     }
 
     _writeRow(sheet, rowIndex, [
       TextCellValue('ИТОГО'),
+      null, // Адрес
       null,
       null,
       null,
       null,
       null,
-      DoubleCellValue(totalActual),
+      DoubleCellValue(totalActual), // Оплачено по факту
       null,
       null,
       null,
@@ -161,12 +195,78 @@ class ExcelReportService {
     if (bytes == null) {
       throw StateError('Не удалось сформировать xlsx-файл.');
     }
-    return Uint8List.fromList(bytes);
+    // Пакет excel не умеет автофильтр — добавляем его в готовый xlsx
+    // пост-обработкой (вставка <autoFilter> в XML листа). Диапазон — вся
+    // таблица включая строку «ИТОГО», чтобы в выпадающих списках были все
+    // значения (фильтр по колонке «Адрес» — основная цель, ТЗ §4.10).
+    return _withAutoFilter(
+      Uint8List.fromList(bytes),
+      firstRow: 1,
+      lastRow: rowIndex + 1,
+      lastColumn: _headers.length,
+    );
+  }
+
+  /// Вставляет `<autoFilter ref="A1:<col><row>"/>` в XML первого листа
+  /// xlsx-файла. [firstRow]/[lastRow] — 1-базовые номера строк диапазона
+  /// фильтра, [lastColumn] — 1-базовый номер последней колонки. При любой
+  /// ошибке разбора/перепаковки возвращает исходные байты — фильтр не
+  /// критичен и не должен срывать формирование отчёта.
+  Uint8List _withAutoFilter(
+    Uint8List xlsx, {
+    required int firstRow,
+    required int lastRow,
+    required int lastColumn,
+  }) {
+    try {
+      final source = ZipDecoder().decodeBytes(xlsx);
+      final ref = 'A$firstRow:${_columnName(lastColumn)}$lastRow';
+      final out = Archive();
+      for (final file in source) {
+        if (!file.isFile) continue;
+        var content = file.content as List<int>;
+        if (file.name.startsWith('xl/worksheets/sheet') &&
+            file.name.endsWith('.xml')) {
+          final xml = utf8.decode(content);
+          // <autoFilter> по схеме OOXML идёт сразу ПОСЛЕ </sheetData>.
+          final at = xml.indexOf('</sheetData>');
+          if (at >= 0 && !xml.contains('<autoFilter')) {
+            final patched = xml.replaceRange(
+              at + '</sheetData>'.length,
+              at + '</sheetData>'.length,
+              '<autoFilter ref="$ref"/>',
+            );
+            content = utf8.encode(patched);
+          }
+        }
+        out.addFile(ArchiveFile(file.name, content.length, content));
+      }
+      final encoded = ZipEncoder().encode(out);
+      if (encoded != null) return Uint8List.fromList(encoded);
+    } catch (_) {
+      // оставляем файл без фильтра — это допустимо.
+    }
+    return xlsx;
+  }
+
+  /// 1 → «A», 2 → «B», …, 27 → «AA» — буквенное имя колонки Excel.
+  String _columnName(int index) {
+    var i = index;
+    final buffer = StringBuffer();
+    while (i > 0) {
+      final rem = (i - 1) % 26;
+      buffer.write(String.fromCharCode(65 + rem));
+      i = (i - 1) ~/ 26;
+    }
+    return buffer.toString().split('').reversed.join();
   }
 
   List<CellValue?> _rowToCells(ExcelReportRow row) {
     return [
       TextCellValue(row.supplierName),
+      row.address == null || row.address!.isEmpty
+          ? null
+          : TextCellValue(row.address!),
       row.currentText == null ? null : TextCellValue(row.currentText!),
       row.previousText == null ? null : TextCellValue(row.previousText!),
       row.consumption == null ? null : DoubleCellValue(row.consumption!),

@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app.dart';
 import '../../database/app_database.dart';
 import '../../models/payment.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/payment_repository.dart';
+import '../../repositories/supplier_repository.dart';
 import '../../utils/payment_status_format.dart';
 import '../../utils/supplier_category_icon.dart';
+
+/// Действие, выбранное в меню свайпа по поставщику.
+enum _SupplierSwipeAction { archive, delete }
 
 /// Список поставщиков — главный экран приложения (ТЗ §4.1, §4.9 — теперь
 /// первая вкладка нижней навигации, не единственный экран приложения, как
@@ -73,6 +78,159 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Архивировать'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  /// Архивирует поставщика по свайпу. Возвращает true, только если запись
+  /// реально прошла (иначе элемент остаётся в списке и показывается ошибка) —
+  /// раньше archive() вызывался без await (fire-and-forget), и при сетевом
+  /// сбое поставщик не архивировался в Supabase, но исчезал из списка.
+  Future<bool> _archiveSupplier(String id, String name) async {
+    try {
+      await ref.read(supplierRepositoryProvider).archive(id);
+      return true;
+    } catch (e) {
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text('Не удалось архивировать «$name»: $e')),
+      );
+      return false;
+    }
+  }
+
+  /// Полное удаление поставщика по свайпу (необратимо). Возвращает true,
+  /// если удаление прошло (элемент убирается из списка).
+  Future<bool> _deleteSupplier(String id, String name) async {
+    try {
+      await ref.read(supplierRepositoryProvider).deleteCompletely(id);
+      return true;
+    } catch (e) {
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text('Не удалось удалить «$name»: $e')),
+      );
+      return false;
+    }
+  }
+
+  /// Меню действий при свайпе влево: «Архивировать» (обратимо) или
+  /// «Удалить» (полностью, необратимо). Возвращает true, если элемент нужно
+  /// убрать из списка (архивация/удаление прошли), иначе false.
+  Future<bool> _showSwipeActions(
+    BuildContext context,
+    String id,
+    String name,
+  ) async {
+    final action = await showModalBottomSheet<_SupplierSwipeAction>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                name,
+                style: Theme.of(ctx).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.archive_outlined),
+              title: const Text('Архивировать'),
+              subtitle: const Text(
+                'Скрыть из списка; история сохранится, можно вернуть.',
+              ),
+              onTap: () =>
+                  Navigator.pop(ctx, _SupplierSwipeAction.archive),
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.delete_forever_outlined,
+                color: Theme.of(ctx).colorScheme.error,
+              ),
+              title: Text(
+                'Удалить',
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+              ),
+              subtitle: const Text(
+                'Удалить навсегда со всеми показаниями, платежами и чеками.',
+              ),
+              onTap: () => Navigator.pop(ctx, _SupplierSwipeAction.delete),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (!context.mounted) return false;
+    if (action == _SupplierSwipeAction.archive) {
+      final confirmed = await _confirmArchive(context, name);
+      if (!confirmed) return false;
+      if (!context.mounted) return false;
+      return _archiveSupplier(id, name);
+    }
+    if (action == _SupplierSwipeAction.delete) {
+      final confirmed = await _confirmDelete(context, id, name);
+      if (!confirmed) return false;
+      if (!context.mounted) return false;
+      return _deleteSupplier(id, name);
+    }
+    return false;
+  }
+
+  /// Подтверждение полного удаления с предупреждением о количестве связанных
+  /// данных (платежи, чеки) — действие необратимо.
+  Future<bool> _confirmDelete(
+    BuildContext context,
+    String id,
+    String name,
+  ) async {
+    SupplierDeletionImpact impact;
+    try {
+      impact = await ref
+          .read(supplierRepositoryProvider)
+          .deletionImpact(id);
+    } catch (_) {
+      impact = SupplierDeletionImpact(payments: 0, receipts: 0);
+    }
+    if (!context.mounted) return false;
+
+    final details = StringBuffer();
+    if (impact.isEmpty) {
+      details.write('Связанных платежей и чеков нет.');
+    } else {
+      details.write('Будут безвозвратно удалены:');
+      if (impact.payments > 0) {
+        details.write('\n• платежей: ${impact.payments}');
+      }
+      if (impact.receipts > 0) {
+        details.write('\n• чеков (файлов): ${impact.receipts}');
+      }
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить поставщика навсегда?'),
+        content: Text(
+          '«$name» и вся история по нему будут удалены. '
+          'Это действие нельзя отменить.\n\n$details',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Удалить'),
           ),
         ],
       ),
@@ -191,13 +349,11 @@ class _SuppliersListScreenState extends ConsumerState<SuppliersListScreen> {
                                   const EdgeInsets.symmetric(horizontal: 20),
                               child: const Icon(Icons.archive_outlined),
                             ),
-                            confirmDismiss: (_) =>
-                                _confirmArchive(context, supplier.name),
-                            onDismissed: (_) {
-                              ref
-                                  .read(supplierRepositoryProvider)
-                                  .archive(supplier.id);
-                            },
+                            confirmDismiss: (_) => _showSwipeActions(
+                              context,
+                              supplier.id,
+                              supplier.name,
+                            ),
                             child: Card(
                               margin: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 6),

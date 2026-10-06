@@ -245,7 +245,8 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       final note = replaced ? ' (счётчик заменён)' : '';
       return (
         amount: amount,
-        line: '${channel.name}$note: $consumption ${channel.unit} × ${formatNumber(channel.tariff)} ₽ '
+        line: '${channel.name}$note: ${formatReading(consumption)} '
+            '${channel.unit} × ${formatNumber(channel.tariff)} ₽ '
             '= ${formatAmount(amount)}',
       );
     }
@@ -254,7 +255,8 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
     final amount = derived.consumption * channel.tariff;
     return (
       amount: amount,
-      line: '${channel.name} (произв.): ${derived.consumption} ${channel.unit} × '
+      line: '${channel.name} (произв.): ${formatReading(derived.consumption)} '
+          '${channel.unit} × '
           '${formatNumber(channel.tariff)} ₽ = ${formatAmount(amount)}',
     );
   }
@@ -326,10 +328,13 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
     }
 
     final totalAmount = entries.fold<double>(0, (sum, e) => sum + e.amount);
+    final totalConsumption =
+        entries.fold<double>(0, (sum, e) => sum + e.consumption);
     final payment = await ref.read(paymentRepositoryProvider).create(
           supplierId: widget.supplierId,
           period: period,
           readingSnapshot: entries,
+          consumption: totalConsumption,
           calculatedAmount: totalAmount,
         );
 
@@ -473,7 +478,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
             if (value == null) return 'Введите число';
             // ТЗ §4.2: понижение допустимо только при явной замене счётчика.
             if (previous != null && !_isReplaced(channel.id) && value < previous.value) {
-              return 'Меньше предыдущего (${previous.value}). '
+              return 'Меньше предыдущего (${formatReading(previous.value)}). '
                   'Если счётчик заменён — отметьте флажок ниже';
             }
             return null;
@@ -503,8 +508,8 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       Text(
         derived == null
             ? 'Нет показания канала-источника за этот период — временно недоступен.'
-            : 'Расход из канала-источника: ${derived.previousValue} → ${derived.currentValue} '
-                '${channel.unit}',
+            : 'Расход из канала-источника: ${formatReading(derived.previousValue)} → '
+                '${formatReading(derived.currentValue)} ${channel.unit}',
       ),
       const SizedBox(height: 16),
     ];

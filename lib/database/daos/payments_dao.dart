@@ -43,4 +43,17 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Future<void> upsert(PaymentsCompanion entry) {
     return into(payments).insertOnConflictUpdate(entry);
   }
+
+  /// Удаляет платёж из локального кеша — часть полного удаления поставщика
+  /// (см. SupplierRepository.deleteCompletely).
+  Future<void> deleteById(String id) {
+    return (delete(payments)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// Платежи поставщика (для каскадного удаления).
+  Future<List<PaymentRow>> getForSupplier(String supplierId) {
+    return (select(payments)
+          ..where((t) => t.supplierId.equals(supplierId)))
+        .get();
+  }
 }

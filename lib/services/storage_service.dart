@@ -98,4 +98,12 @@ class StorageService {
           expiresInSeconds,
         );
   }
+
+  /// Удаляет файлы чеков из бакета по списку путей — часть полного удаления
+  /// поставщика, чтобы после удаления платежей в Storage не оставались
+  /// «осиротевшие» файлы (каскад БД файлы в Storage не трогает).
+  Future<void> remove(List<String> paths) async {
+    if (paths.isEmpty) return;
+    await _client.storage.from(_bucket).remove(paths);
+  }
 }

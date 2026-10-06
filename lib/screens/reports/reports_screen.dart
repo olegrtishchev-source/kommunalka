@@ -149,6 +149,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       name: r.name,
       category: r.category,
       type: SupplierType.fromDb(r.type),
+      address: r.address,
       archivedAt: r.archivedAt,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,

@@ -70,11 +70,12 @@ class PaymentHistoryCard extends StatelessWidget {
             if (entries.isNotEmpty)
               for (final e in entries)
                 Text(
-                  '${e.channelName}: ${e.previousValue} → ${e.currentValue} ${e.unit} '
-                  '(расход: ${e.consumption.toStringAsFixed(2)} ${e.unit})',
+                  '${e.channelName}: ${formatReading(e.previousValue)} → '
+                  '${formatReading(e.currentValue)} ${e.unit} '
+                  '(расход: ${formatReading(e.consumption)} ${e.unit})',
                 )
             else if (payment.consumption != null)
-              Text('Расход: ${payment.consumption!.toStringAsFixed(2)}'),
+              Text('Расход: ${formatReading(payment.consumption!)}'),
             const SizedBox(height: 4),
             Text('Расчётная сумма: ${formatAmount(payment.calculatedAmount)}'),
             Text(

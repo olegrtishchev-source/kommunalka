@@ -49,3 +49,13 @@ app.*.map.json
 
 # GIGA IDE (личные настройки)
 .gigaide/
+
+# Локальные временные артефакты разработки (вывод analyze/test, дампы БД с
+# устройства, скриншоты, вспомогательные скрипты-проверки) — не в git.
+analyze_out.txt
+test_out.txt
+run_out.txt
+filter_out.txt
+dev_db.sqlite
+screencap*.png
+_inspect_db.py

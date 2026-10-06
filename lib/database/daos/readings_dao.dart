@@ -41,4 +41,10 @@ class ReadingsDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
     return row != null;
   }
+
+  /// Удаляет все показания канала из локального кеша — часть полного
+  /// удаления поставщика (см. SupplierRepository.deleteCompletely).
+  Future<void> deleteForChannel(String channelId) {
+    return (delete(readings)..where((t) => t.channelId.equals(channelId))).go();
+  }
 }
