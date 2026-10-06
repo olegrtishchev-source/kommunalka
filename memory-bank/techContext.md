@@ -7,12 +7,16 @@
 - Устройство: Xiaomi Redmi Note 10 Pro (Android 13, API 33).
 
 ## Зависимости (pubspec.yaml)
-- supabase_flutter, drift + drift_flutter + drift_dev/build_runner, flutter_riverpod, go_router, image, image_picker, url_launcher, shared_preferences, excel, http + flutter_web_auth_2, flutter_lints.
+- База: supabase_flutter, drift + drift_flutter + drift_dev/build_runner, flutter_riverpod, go_router.
+- Прочее: image, image_picker, url_launcher, shared_preferences, http + flutter_web_auth_2, flutter_lints.
+- QR/оплата: qr_flutter (рендер платёжного QR), mobile_scanner (скан QR квитанции), gal (сохранение в галерею), share_plus (поделиться).
+- Чеки/отчёты: file_picker (выбор PDF-чека), excel (xlsx-отчёт), archive (пост-обработка xlsx — вставка `<autoFilter>`; прямая зависимость с 5.9.5).
 
 ## Команды
 - `flutter run -d <device-id>` / `flutter build apk --release`
 - `flutter analyze`, `flutter test`
 - `dart run build_runner build` — регенерация `.g.dart` (после правки drift-таблиц)
+- Диагностический скрипт: `dart run test/excel_autofilter_check.dart` — проверяет `<autoFilter>` в xlsx.
 
 ## Конфигурация / секреты
 - В `lib/main.dart` — только publishable ключи (Supabase URL/key, Яндекс Client ID, redirect URI). Секретов в клиенте нет.
@@ -21,7 +25,9 @@
 - `flutter test`/`flutter analyze` холодным прогоном > 30 с — запускать в фоне с записью вывода в файл.
 - Кириллицу в консоли читать не через `Get-Content` (битая кодировка), а через `python -c "...read_text(encoding='utf-8')"` или `read_files`.
 - build_runner опция `--delete-conflicting-outputs` удалена в новой версии (warning), outputs перезаписываются автоматически.
+- Устройство в `flutter run`: id `e11a40c1` (M2101K6G, Xiaomi). При обрыве ADB: `adb kill-server; adb start-server`.
+- Дамп локальной БД с устройства (для диагностики): `adb exec-out run-as ru.rtishchev.kommunalka cat app_flutter/kommunalka_local.sqlite > dev_db.sqlite` (через `cmd /c` — PowerShell портит бинарь). Читать через Python `sqlite3`. Файл `dev_db.sqlite` в `.gitignore`.
 
 ## Ключевые файлы
-- `supabase/schema.sql` (схема + RLS), `supabase/migration_5.8.sql` (ALTER TABLE, выполнен).
+- `supabase/schema.sql` (схема + RLS), `supabase/migration_5.6.sql` (поле address), `supabase/migration_5.8.sql` — применены Олегом.
 - `ТЗ.md`, `План_выполнения.md` — спецификация и журнал.
