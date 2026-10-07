@@ -1,10 +1,14 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../database/app_database.dart';
+import '../../models/payment.dart';
+import '../../models/supplier.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../providers/channel_provider.dart';
@@ -15,8 +19,10 @@ import '../../providers/receipt_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../services/backup_service.dart';
+import '../../services/excel_report_service.dart';
 import '../../services/settings_service.dart';
 import '../../utils/error_messages.dart';
+import '../../utils/payments_csv.dart';
 
 /// Настройки (ТЗ §4.8) — вкладка «Настройки» нижней навигации (4.9).
 ///
@@ -214,6 +220,106 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Экспорт истории платежей в CSV (ТЗ §4.6, опц. п. 7.3): собирает все
+  /// платежи пользователя, раскладывает в строки отчёта и отдаёт CSV через
+  /// системное «Поделиться».
+  Future<void> _exportCsv() async {
+    setState(() => _working = true);
+    try {
+      final supplierRepo = ref.read(supplierRepositoryProvider);
+      final paymentRepo = ref.read(paymentRepositoryProvider);
+      await Future.wait([supplierRepo.refresh(), paymentRepo.refresh()]);
+
+      final suppliers = await supplierRepo.watchAll().first;
+      final suppliersById = {for (final s in suppliers) s.id: s};
+      final payments = await paymentRepo.watchAll().first;
+
+      if (payments.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Нет платежей для экспорта.')),
+        );
+        return;
+      }
+
+      // Сортировка по периоду (сначала новые) — как в истории (ТЗ §4.6).
+      final sorted = [...payments]
+        ..sort((a, b) => b.period.compareTo(a.period));
+
+      final entries = <PaymentsCsvEntry>[];
+      for (final paymentRow in sorted) {
+        final supplierRow = suppliersById[paymentRow.supplierId];
+        if (supplierRow == null) continue;
+        entries.add(
+          PaymentsCsvEntry(
+            period: paymentRow.period,
+            row: ExcelReportRow.fromPaymentAndSupplier(
+              _supplierFromRow(supplierRow),
+              _paymentFromRow(paymentRow),
+            ),
+          ),
+        );
+      }
+
+      final bytes = Uint8List.fromList(buildPaymentsCsvBytes(entries));
+      final stamp = _fileStamp(DateTime.now());
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              bytes,
+              mimeType: 'text/csv',
+              name: 'kommunalka_history_$stamp.csv',
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось экспортировать CSV: ${describeError(e)}')),
+      );
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Payment _paymentFromRow(PaymentRow r) {
+    final snapshotJson = r.readingSnapshot;
+    return Payment(
+      id: r.id,
+      userId: r.userId,
+      supplierId: r.supplierId,
+      period: r.period,
+      readingSnapshot: snapshotJson == null
+          ? null
+          : (jsonDecode(snapshotJson) as List<dynamic>)
+              .map((e) => ReadingSnapshotEntry.fromJson(e as Map<String, dynamic>))
+              .toList(),
+      consumption: r.consumption,
+      calculatedAmount: r.calculatedAmount,
+      actualAmount: r.actualAmount,
+      status: PaymentStatus.fromDb(r.status),
+      paymentDate: r.paymentDate,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    );
+  }
+
+  Supplier _supplierFromRow(SupplierRow r) {
+    return Supplier(
+      id: r.id,
+      userId: r.userId,
+      name: r.name,
+      category: r.category,
+      type: SupplierType.fromDb(r.type),
+      address: r.address,
+      archivedAt: r.archivedAt,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    );
+  }
+
   /// Метка времени для имени файла: 20261007_1235.
   String _fileStamp(DateTime now) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -282,6 +388,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: const Text('Восстановить данные из файла резервной копии'),
               enabled: !_working,
               onTap: _importBackup,
+            ),
+            ListTile(
+              leading: const Icon(Icons.table_view_outlined),
+              title: const Text('Экспорт истории (CSV)'),
+              subtitle: const Text('Выгрузить все платежи таблицей для Excel'),
+              enabled: !_working,
+              onTap: _exportCsv,
             ),
             const Divider(),
             ListTile(
