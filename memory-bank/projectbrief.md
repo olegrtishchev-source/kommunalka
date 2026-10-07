@@ -30,5 +30,6 @@
 
 ## Документы и репозиторий
 - `ТЗ.md` (v2.2), `План_выполнения.md` — спецификация и журнал.
+- `docs/ИНСТРУКЦИЯ.md` — инструкция по использованию приложения (для пользователя).
 - `supabase/schema.sql`, `supabase/migration_5.6.sql`, `supabase/migration_5.8.sql`.
 - GitHub: https://github.com/olegrtishchev-source/kommunalka (ветка main).

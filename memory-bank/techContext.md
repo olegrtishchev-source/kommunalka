@@ -41,4 +41,5 @@
 ## Ключевые файлы
 - `supabase/schema.sql` (схема + RLS), `supabase/migration_5.6.sql` (поле address), `supabase/migration_5.8.sql` — применены Олегом.
 - `ТЗ.md`, `План_выполнения.md` — спецификация и журнал.
+- `docs/ИНСТРУКЦИЯ.md` — пользовательская инструкция (рус.; ссылка из `README.md`); `docs/images/` — для будущих скриншотов.
 - Иконка/название (7.6): `tools/make_launcher_icons.py` (+ `tools/_verify_icons.py`); `android/app/src/main/res/values/strings.xml` (`app_name`), `values/colors.xml` (`ic_launcher_background`), `mipmap-anydpi-v26/ic_launcher.xml`, `mipmap-*/ic_launcher.png` + `ic_launcher_foreground.png`.
