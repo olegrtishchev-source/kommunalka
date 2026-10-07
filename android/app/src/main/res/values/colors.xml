@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Цвет фона адаптивной иконки (Android 8+, Этап 7.6).
+     Совпадает с фирменным teal-цветом темы (Colors.teal). -->
+<resources>
+    <color name="ic_launcher_background">#00898B</color>
+</resources>

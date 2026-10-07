@@ -55,6 +55,28 @@ tools\login-test.bat
 - спецсимволы пароля (кириллица, `!`, `#`, кавычки) могут не передаться — берите ASCII-пароль или вводите вручную;
 - координаты полей рассчитаны на 1080×2340 (AVD Pixel 5); при другом разрешении сверьтесь по скриншоту.
 
+## Иконка и название приложения (Этап 7.6)
+
+- `tools\make_launcher_icons.py` — генератор иконок запуска (чистый Python,
+  только stdlib: `zlib`/`struct`; Pillow не нужен). Рисует фирменный домик на
+  teal-фоне и пишет PNG во всех плотностях:
+  - `mipmap-*/ic_launcher.png` — legacy-иконка (mdpi 48 … xxxhdpi 192);
+  - `mipmap-*/ic_launcher_foreground.png` — foreground адаптивной иконки
+    (mdpi 108 … xxxhdpi 432), фон задаётся `values/colors.xml`
+    (`ic_launcher_background`), конфиг — `mipmap-anydpi-v26/ic_launcher.xml`.
+  - Скрипт идемпотентен; после правки геометрии/цвета — перезапустить:
+    ```bat
+    python tools\make_launcher_icons.py
+    ```
+- `tools\_verify_icons.py` — проверка: валидность PNG (сигнатура, IHDR, IDAT) +
+  ASCII-превью крупных иконок (визуальный контроль формы домика/фона):
+  ```bat
+  python tools\_verify_icons.py
+  ```
+- Название приложения в лаунчере — `android/app/src/main/res/values/strings.xml`
+  (`app_name = Коммуналка`), подключено в `AndroidManifest.xml` через
+  `android:label="@string/app_name"`.
+
 ## Остановка эмулятора
 
 ```bat

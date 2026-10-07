@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Название приложения в лаунчере и системных диалогах (Этап 7.6).
+     Отделено от имени пакета ru.rtishchev.kommunalka — так принято в Android
+     и позволяет при желании добавить локализацию отдельными values-*/. -->
+<resources>
+    <string name="app_name">Коммуналка</string>
+</resources>

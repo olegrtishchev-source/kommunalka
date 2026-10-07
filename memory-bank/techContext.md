@@ -17,6 +17,7 @@
 - `flutter analyze`, `flutter test`
 - `dart run build_runner build` — регенерация `.g.dart` (после правки drift-таблиц)
 - Диагностический скрипт: `dart run test/excel_autofilter_check.dart` — проверяет `<autoFilter>` в xlsx.
+- Иконки (7.6): `python tools/make_launcher_icons.py` (генерация, чистый Python — только stdlib), `python tools/_verify_icons.py` (валидность PNG + ASCII-превью).
 
 ## Конфигурация / секреты
 - В `lib/main.dart` — только publishable ключи (Supabase URL/key, Яндекс Client ID, redirect URI). Секретов в клиенте нет.
@@ -40,3 +41,4 @@
 ## Ключевые файлы
 - `supabase/schema.sql` (схема + RLS), `supabase/migration_5.6.sql` (поле address), `supabase/migration_5.8.sql` — применены Олегом.
 - `ТЗ.md`, `План_выполнения.md` — спецификация и журнал.
+- Иконка/название (7.6): `tools/make_launcher_icons.py` (+ `tools/_verify_icons.py`); `android/app/src/main/res/values/strings.xml` (`app_name`), `values/colors.xml` (`ic_launcher_background`), `mipmap-anydpi-v26/ic_launcher.xml`, `mipmap-*/ic_launcher.png` + `ic_launcher_foreground.png`.

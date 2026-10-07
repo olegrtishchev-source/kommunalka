@@ -1,9 +1,17 @@
 # Active Context — Kommunalka
 
 ## Текущий фокус
-**Этап 7 «Финальные штрихи» — 🔄 в работе.** Выполнено: 7.1 (чистые сообщения об ошибках), 7.2 (JSON backup export/import), 7.3 (CSV-экспорт истории платежей + фикс ориентации), **7.5 (release APK + своя подпись, 07.10.2026)**. Осталось: 7.6 (иконка/название), 7.7 (сверка с «Критериями готовности»), опц. 7.4 (локальные напоминания). Перед этим завершён Этап 6 (6.1, 6.2 частично, 6.4).
+**Этап 7 «Финальные штрихи» — 🔄 в работе.** Выполнено: 7.1 (чистые сообщения об ошибках), 7.2 (JSON backup export/import), 7.3 (CSV-экспорт истории платежей + фикс ориентации), 7.5 (release APK + своя подпись, 07.10.2026), **7.6 (финальная иконка и название, 07.10.2026)**. Осталось: 7.7 (сверка с «Критериями готовности»), опц. 7.4 (локальные напоминания). Перед этим завершён Этап 6 (6.1, 6.2 частично, 6.4).
 
 ## Последние изменения (07.10.2026)
+- **Этап 7.6 «Финальная иконка и название приложения» — выполнено (07.10.2026).**
+  - **Название:** в `AndroidManifest.xml` `android:label` переведён с `kommunalka` на `@string/app_name`; создан `android/app/src/main/res/values/strings.xml` (`app_name = Коммуналка`). Имя приложения в лаунчере/диалогах — «Коммуналка», отделено от имени пакета `ru.rtishchev.kommunalka`.
+  - **Иконка:** генератор `tools/make_launcher_icons.py` (**чистый Python 3, только stdlib** `zlib`/`struct` — Pillow в среде нет). Рисует фирменный домик (крыша + корпус + дверь) на teal-фоне `#00898B` (совпадает с seed-цветом темы). Аналитическое сглаживание (1 проход по пикселям, SDF по пикселю). Пишет `mipmap-*/ic_launcher.png` (48/72/96/144/192) и `mipmap-*/ic_launcher_foreground.png` (108/162/216/324/432).
+  - **Адаптивная иконка (Android 8+):** `mipmap-anydpi-v26/ic_launcher.xml` (foreground `@mipmap/ic_launcher_foreground` + background `@color/ic_launcher_background`), цвет в `values/colors.xml`.
+  - **Проверка:** `tools/_verify_icons.py` (валидность PNG + ASCII-превью — форма домика/фона подтверждена). Сборка `flutter build apk --debug` — **успешно**; по APK (`aapt2 dump badging`): `application-label:'Коммуналка'`, `application-icon-*:res/mipmap-anydpi-v26/ic_launcher.xml`; в APK упакованы все 5 плотностей `ic_launcher.png` + `ic_launcher_foreground.png` + anydpi-xml.
+  - `flutter analyze` чисто, `flutter test` — **58 тестов пройдено**.
+  - **Нюанс:** первый `flutter build` после правки манифеста дал stale-merge (label остался старым) и упал на `stripDebugDebugSymbols` (MD5-лок на Windows, не связан с ресурсами) — решено очисткой `intermediates/stripped_native_libs` и повторной сборкой.
+
 - **Этап 7.5 «Сборка релизного APK, проверка установки» — выполнено (07.10.2026).**
   - **Release-keystore:** создан `android/kommunalka-release.jks` (alias `kommunalka`, store/key пароль `kommunalka2026`, RSA 2048, validity 10000 дней, DN `CN=Kommunalka, OU=Personal, O=Personal, L=Krasnodar, ST=Krasnodar, C=RU`). `android/key.properties` со `storeFile=../kommunalka-release.jks`.
   - **Оба файла в `.gitignore`** (`android/key.properties`, `android/*.jks`, `android/*.keystore`).
