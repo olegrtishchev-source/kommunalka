@@ -59,10 +59,13 @@ run_emu.txt
 run_dev.txt
 filter_out.txt
 emulator_out.txt
+*_out.txt
+*_err.txt
 sdk_list.txt
 sdk_install.txt
 avd_create.txt
 dev_db.sqlite
 screencap*.png
+_emu_screen.png
 _inspect_db.py
 _*.bat
