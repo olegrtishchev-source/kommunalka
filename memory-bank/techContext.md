@@ -28,13 +28,9 @@
 - Устройство в `flutter run`: id `e11a40c1` (M2101K6G, Xiaomi). При обрыве ADB: `adb kill-server; adb start-server`.
 - Дамп локальной БД с устройства (для диагностики): `adb exec-out run-as ru.rtishchev.kommunalka cat app_flutter/kommunalka_local.sqlite > dev_db.sqlite` (через `cmd /c` — PowerShell портит бинарь). Читать через Python `sqlite3`. Файл `dev_db.sqlite` в `.gitignore`.
 
-## Тестовые устройства (эмулятор + физическое)
-- **Физическое:** `e11a40c1` (M2101K6G, Xiaomi, Android 13/API 33, arm64).
-- **Эмулятор:** `emulator-5554` (AVD `kommunalka_api33`, Pixel 5, Android 13/API 33, x86_64) — та же версия Android → идентичное поведение.
-- **Хелперы** (`tools/`): `emulator-start.bat`, `emulator-stop.bat`, `run-emulator.bat`, `run-device.bat`, `devices.bat`; инструкция — `tools/README.md`.
-- **Настройка эмулятора (07.10.2026, важно):** AVD настроен на аппаратный рендеринг — `config.ini`: `hw.gpu.enabled=yes`, `hw.gpu.mode=host`, `hw.ramSize=4G`, `hw.cpu.ncore=4`, `vm.heapSize=512M`. `emulator-start.bat` запускает с `-gpu host -no-snapshot-load`. **Причина:** старые значения (`gpu.enabled=no`, `ram=2G`, `2 ядра`) давали программный рендеринг → перегруз CPU → постоянный системный ANR «Process system isn't responding», который перехватывал тапы и делал тест через adb почти невозможным. После правки GLES = `Intel UHD Graphics`.
-- Переключение таргетов: `flutter run -d <id>` (соберёт под нужную архитектуру сам; между arm64↔x64 пересборка). Первый прогон на эмуляторе (x64): `assembleDebug` ~272 с.
-- **Тест через adb:** `adb input text` не преобразует `%40` в `@` — символы `@` вводить напрямую (`input text user@example.com`). Анимации для стабильности: `settings put global {window,transition,animator}_duration_scale 0`. Скриншот: `adb exec-out screencap -p > _emu_screen.png`. Сеть on/off: `svc wifi|data enable|disable`. Приложение можно запускать без `flutter run`: `am start -n ru.rtishchev.kommunalka/.MainActivity` (меньше нагрузка, но логи только в logcat).
+## Тестовые устройства
+- **Только физическое устройство:** `e11a40c1` (M2101K6G, Xiaomi, Android 13/API 33, arm64) — единственный таргет (решение Олега, 07.10.2026). Эмулятор больше НЕ используется: AVD `kommunalka_api33` и `tools/emulator-*.bat` остаются в репозитории как исторический артефакт, в работе не задействуются.
+- Запуск приложения: `flutter run -d e11a40c1`.
 - **JAVA_HOME** глобально не задан — для `avdmanager`/`sdkmanager`/`emulator` задаётся локально в скриптах как `C:\Program Files\Android\Android Studio\jbr` (JBR, JDK 25).
 - Установка system-image: `sdkmanager "system-images;android-33;google_apis;x86_64"` (нужен JAVA_HOME).
 - Создание AVD: `avdmanager create avd --name kommunalka_api33 --package "system-images;android-33;google_apis;x86_64" --device pixel_5`.
