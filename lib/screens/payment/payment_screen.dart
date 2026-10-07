@@ -19,6 +19,7 @@ import '../../providers/supplier_provider.dart';
 import '../../utils/amount_format.dart';
 import '../../utils/bank_details_format.dart';
 import '../../utils/date_format.dart';
+import '../../utils/error_messages.dart';
 import '../../utils/payment_qr_builder.dart';
 
 /// Оплата (ТЗ §4.4, схема 2.5, сценарий 3): расчётная сумма, реквизиты
@@ -86,7 +87,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = '$e';
+        _error = describeError(e);
         _loading = false;
       });
     }
@@ -135,7 +136,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       );
       context.go('/suppliers');
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -164,7 +165,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     try {
       qrData = buildPaymentQr(supplierModel, paymentModel);
     } on ArgumentError catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(describeError(e))),
+      );
       return;
     }
     final readingText = _readingText(paymentModel);

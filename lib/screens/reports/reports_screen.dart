@@ -17,6 +17,7 @@ import '../../providers/yandex_disk_provider.dart';
 import '../../services/excel_report_service.dart';
 import '../../services/yandex_disk_service.dart';
 import '../../utils/date_format.dart';
+import '../../utils/error_messages.dart';
 
 /// Отчёты (ТЗ §4.10) — вкладка «Отчёты» нижней навигации (4.9). Выбор
 /// периода, статус авторизации Яндекс Диска, кнопка «Сформировать и
@@ -107,7 +108,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       if (!mounted) return;
       setState(() => _yandexToken = token);
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _connecting = false);
     }
@@ -378,7 +379,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         _successMessage = 'Отчёт «$fileName» выгружен на Яндекс Диск';
       });
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _generating = false);
     }

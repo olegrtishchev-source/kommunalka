@@ -14,6 +14,7 @@ import '../../providers/channel_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../repositories/channel_repository.dart';
 import '../../utils/amount_format.dart';
+import '../../utils/error_messages.dart';
 import '../../utils/qr_parser.dart';
 import 'qr_scanner_screen.dart';
 
@@ -216,7 +217,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = describeError(e);
         _loading = false;
       });
     }
@@ -243,7 +244,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
         );
         return;
       } catch (e) {
-        setState(() => _error = '$e');
+        setState(() => _error = describeError(e));
         return;
       }
     }
@@ -367,7 +368,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
       if (!mounted) return;
       context.pop();
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

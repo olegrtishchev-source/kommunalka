@@ -8,6 +8,7 @@ import '../../database/app_database.dart';
 import '../../models/receipt.dart';
 import '../../providers/receipt_provider.dart';
 import '../../utils/date_format.dart';
+import '../../utils/error_messages.dart';
 
 /// Прикрепление чека (ТЗ §4.5, схема §2.5: /payments/:paymentId/receipt) —
 /// отдельное необязательное действие: доступно сразу после ввода оплаты
@@ -53,7 +54,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
             bytes: bytes,
           );
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -78,7 +79,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
             isPdf: true,
           );
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -100,7 +101,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen> {
         setState(() => _error = 'Не удалось открыть ссылку на чек.');
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) setState(() => _error = describeError(e));
     }
   }
 

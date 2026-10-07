@@ -13,6 +13,7 @@ import '../../providers/reading_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../utils/amount_format.dart';
 import '../../utils/date_format.dart';
+import '../../utils/error_messages.dart';
 
 /// Ввод показаний (with_readings) или суммы к оплате (without_readings) —
 /// ТЗ §4.2–4.3, схема §2.5, сценарий 2: «Далее» создаёт Payment и
@@ -146,7 +147,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
       await _loadDerivedData();
     } catch (e) {
       setState(() {
-        _error = '$e';
+        _error = describeError(e);
         _loading = false;
       });
     }
@@ -371,7 +372,7 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
         await _submitWithReadings();
       }
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

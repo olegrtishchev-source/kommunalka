@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../utils/error_messages.dart';
 
 /// Вход в приложение (ТЗ §3, схема 2.5). Минимальный экран для тончайшей
 /// связки Этапа 3.5 — только вход, без регистрации: единственный тестовый
@@ -42,7 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Успешный вход — go_router-redirect (router.dart) сам уведёт
       // на /suppliers по событию authStateChanges.
     } catch (e) {
-      setState(() => _error = 'Не удалось войти: $e');
+      setState(() => _error = describeAuthError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
