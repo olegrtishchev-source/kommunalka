@@ -69,3 +69,9 @@ screencap*.png
 _emu_screen.png
 _inspect_db.py
 _*.bat
+
+# Тестовые учётные данные (никогда не коммитить)
+test_creds.txt
+*_creds.txt
+.env
+env.txt
