@@ -20,6 +20,7 @@
 
 ## Конфигурация / секреты
 - В `lib/main.dart` — только publishable ключи (Supabase URL/key, Яндекс Client ID, redirect URI). Секретов в клиенте нет.
+- **Подпись релизной сборки (7.5):** `android/kommunalka-release.jks` (alias `kommunalka`, пароли `kommunalka2026`) + `android/key.properties`. Оба файла в `.gitignore`. `build.gradle.kts` читает `key.properties`; если его нет — фолбэк на debug-подпись. Ключ хранить надёжно: смена ключа ломает обновление приложения поверх (переустановка с удалением = сброс локального кэша, данные в Supabase не теряются).
 
 ## Примечание по среде
 - `flutter test`/`flutter analyze` холодным прогоном > 30 с — запускать в фоне с записью вывода в файл.

@@ -1,9 +1,18 @@
 # Active Context — Kommunalka
 
 ## Текущий фокус
-**Этап 6 «Сборка и тестирование» — 🔄 в работе** (6.1 ✅; **6.2 ручное тестирование идёт** — на 06.10.2026 пройдены: история, ввод показаний «с показаниями», оплата полным циклом, скан QR квитанции). Перед этим завершены **Этап 5.6 «Адреса (объекты)»** (ТЗ §4.13), **Этапы 5.7 «Чеки и отчёт на Яндекс.Диске» / 5.8 «PDF-чек»** и **Этап 5.9 «Доработки по итогам проверки»** — по просьбе Олега, вне исходного ТЗ. Далее — добить 6.2, затем 6.3–6.4 и Этап 7.
+**Этап 7 «Финальные штрихи» — 🔄 в работе.** Выполнено: 7.1 (чистые сообщения об ошибках), 7.2 (JSON backup export/import), 7.3 (CSV-экспорт истории платежей + фикс ориентации), **7.5 (release APK + своя подпись, 07.10.2026)**. Осталось: 7.6 (иконка/название), 7.7 (сверка с «Критериями готовности»), опц. 7.4 (локальные напоминания). Перед этим завершён Этап 6 (6.1, 6.2 частично, 6.4).
 
 ## Последние изменения (07.10.2026)
+- **Этап 7.5 «Сборка релизного APK, проверка установки» — выполнено (07.10.2026).**
+  - **Release-keystore:** создан `android/kommunalka-release.jks` (alias `kommunalka`, store/key пароль `kommunalka2026`, RSA 2048, validity 10000 дней, DN `CN=Kommunalka, OU=Personal, O=Personal, L=Krasnodar, ST=Krasnodar, C=RU`). `android/key.properties` со `storeFile=../kommunalka-release.jks`.
+  - **Оба файла в `.gitignore`** (`android/key.properties`, `android/*.jks`, `android/*.keystore`).
+  - `build.gradle.kts` читает `key.properties` через `rootProject.file(...)`, создаёт `signingConfigs.release`, при отсутствии файла — фолбэк на debug-подпись (чтобы сборка не падала в CI).
+  - **Собрано:** `flutter build apk --release` → `build/app/outputs/flutter-apk/app-release.apk`, **80.6 МБ** (debug 143.7 МБ). Время сборки: первый прогон ~630 с (R8), повторный ~108 с (кэш).
+  - **Подпись проверена** `apksigner verify --print-certs`: `Signer #1 certificate DN: CN=Kommunalka, ... C=RU` — **не debug**.
+  - **Метаданные** (`aapt2 dump badging`): `ru.rtishchev.kommunalka`, versionCode=1, versionName=1.0.0, **minSdk=24, targetSdk=36, compileSdk=36**; `WRITE_EXTERNAL_STORAGE maxSdkVersion=29`.
+  - **Проверка установки/обновления:** на устройстве стояла debug-сборка → `adb install -r` дал `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (ожидаемо, подписи разные). Удалил старую версию. Новая установка через adb дала **`INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`** — это **ограничение MIUI/HyperOS** (блокирует side-load через adb без ручного «Установка через USB»), НЕ дефект APK. APK скопирован на телефон: **`/sdcard/Download/kommunalka-release.apk`** — установка ожидается вручную (файловый менеджер → «Установить»).
+  - **TODO после ручной установки:** проверить запуск release-сборки на устройстве (в т.ч. `AuthRetryableFetchException` при нестабильной сети — задача 7.5).
 - **Этап 7.3 «Экспорт истории платежей в CSV» — выполнено (07.10.2026).** Опциональный пункт: выгрузка всей истории платежей таблицей (ТЗ §4.6).
   - `lib/utils/payments_csv.dart` — чистая логика: `PaymentsCsvEntry` (период + `ExcelReportRow`), `buildPaymentsCsv`/`buildPaymentsCsvBytes`. Колонки согласованы с Excel-отчётом (ТЗ §4.10) + «Период» первым столбцом; разделитель «;» и UTF-8 с BOM (кириллица в Excel), экранирование по RFC 4180; суммы через запятую, показания через `formatReading`.
   - UI в «Настройках»: кнопка «Экспорт истории (CSV)» → сбор платежей из Supabase → `ExcelReportRow.fromPaymentAndSupplier` → CSV → `share_plus` (имя `kommunalka_history_<stamp>.csv`). Ошибки — `describeError`.

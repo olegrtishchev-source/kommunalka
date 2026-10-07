@@ -76,3 +76,8 @@ test_creds.txt
 *_creds.txt
 .env
 env.txt
+
+# Подпись релизной сборки Android (секреты — не в git)
+android/key.properties
+android/*.jks
+android/*.keystore
