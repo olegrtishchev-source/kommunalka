@@ -53,7 +53,7 @@
 
 ## Этап 7 — финальные штрихи
 - ✅ **7.1 Обработка пограничных случаев (перевод ошибок) — выполнено (07.10.2026).** Новый `lib/utils/error_messages.dart` (`describeAuthError`/`describeError`) вместо сырого `'$e'` в 6 экранах (login, payment ×3, reading_entry ×2, receipt ×3, reports ×2, supplier_form ×3). Устранены обе находки тестирования: стек/URL на входе и префикс `Invalid argument(s):` на QR. Тесты: `test/error_messages_test.dart` (+14). `flutter analyze` чисто, `flutter test` — 42 пройдено.
-- ⏳ 7.2 Экспорт/импорт данных в JSON.
+- ✅ **7.2 Экспорт/импорт данных в JSON — выполнено (07.10.2026).** `lib/services/backup_service.dart` (чистая логика: `buildBackup`/`parseBackup`, `BackupData`, `BackupFormatException`, формат `kommunalka-backup` v1) + `lib/repositories/backup_repository.dart` (`exportData`/`importData` через Supabase, upsert по id, user_id = текущий, порядок FK) + провайдер + UI в «Настройках» (Экспорт — `share_plus`, Импорт — `file_picker` json + диалог подтверждения). Тесты: `test/backup_service_test.dart` (+9). analyze чисто, test 51 пройдено.
 - ⏳ 7.3 (опц.) Экспорт истории платежей в CSV.
 - ⏳ 7.4 (опц.) Локальные напоминания.
 - ⏳ 7.5 Сборка релизного APK, проверка установки/обновления.

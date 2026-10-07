@@ -1,7 +1,12 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/backup_provider.dart';
 import '../../providers/channel_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/payment_provider.dart';
@@ -9,7 +14,9 @@ import '../../providers/reading_provider.dart';
 import '../../providers/receipt_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../services/backup_service.dart';
 import '../../services/settings_service.dart';
+import '../../utils/error_messages.dart';
 
 /// Настройки (ТЗ §4.8) — вкладка «Настройки» нижней навигации (4.9).
 ///
@@ -88,6 +95,132 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Экспорт резервной копии (ТЗ §4.9): читает данные из Supabase, собирает
+  /// JSON и предлагает сохранить/отправить файл через системное «Поделиться».
+  Future<void> _exportBackup() async {
+    setState(() => _working = true);
+    try {
+      final data = await ref.read(backupRepositoryProvider).exportData();
+      if (data.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Нет данных для экспорта.')),
+        );
+        return;
+      }
+      final json = buildBackup(
+        suppliers: data.suppliers,
+        channels: data.channels,
+        readings: data.readings,
+        payments: data.payments,
+        exportedAt: DateTime.now(),
+      );
+      final stamp = _fileStamp(DateTime.now());
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              utf8.encode(json),
+              mimeType: 'application/json',
+              name: 'kommunalka_backup_$stamp.json',
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось экспортировать: ${describeError(e)}')),
+      );
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  /// Импорт резервной копии (ТЗ §4.9): выбор JSON-файла, разбор, подтверждение
+  /// и запись в Supabase с последующей перезагрузкой локального кеша.
+  Future<void> _importBackup() async {
+    final picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    if (picked.isEmpty) return; // пользователь отменил выбор
+    final BackupData data;
+    try {
+      final bytes = await picked.first.readAsBytes();
+      data = parseBackup(utf8.decode(bytes, allowMalformed: true));
+    } on BackupFormatException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+      return;
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось прочитать файл: ${describeError(e)}')),
+      );
+      return;
+    }
+    if (data.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('В файле нет данных для импорта.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Импортировать данные?'),
+        content: Text(
+          'Будет добавлено/обновлено: поставщиков — ${data.suppliers.length}, '
+          'каналов — ${data.channels.length}, показаний — ${data.readings.length}, '
+          'платежей — ${data.payments.length}.\n\n'
+          'Записи с теми же идентификаторами перезапишут существующие.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Импортировать')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _working = true);
+    try {
+      final result = await ref.read(backupRepositoryProvider).importData(data);
+      // Догружаем локальный кеш, чтобы изменения сразу отразились на экранах.
+      await Future.wait([
+        ref.read(supplierRepositoryProvider).refresh(),
+        ref.read(channelRepositoryProvider).refresh(),
+        ref.read(readingRepositoryProvider).refresh(),
+        ref.read(paymentRepositoryProvider).refresh(),
+        ref.read(receiptRepositoryProvider).refresh(),
+      ]);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Импорт завершён: записей — ${result.total}.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось импортировать: ${describeError(e)}')),
+      );
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  /// Метка времени для имени файла: 20261007_1235.
+  String _fileStamp(DateTime now) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${now.year}${two(now.month)}${two(now.day)}_'
+        '${two(now.hour)}${two(now.minute)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(settingsServiceProvider);
@@ -134,6 +267,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: null,
               title: const Text('Напоминания о внесении показаний'),
               subtitle: const Text('Появятся, когда будут реализованы локальные уведомления.'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.upload_file_outlined),
+              title: const Text('Экспорт данных (JSON)'),
+              subtitle: const Text('Сохранить резервную копию поставщиков, показаний и платежей'),
+              enabled: !_working,
+              onTap: _exportBackup,
+            ),
+            ListTile(
+              leading: const Icon(Icons.download_outlined),
+              title: const Text('Импорт данных (JSON)'),
+              subtitle: const Text('Восстановить данные из файла резервной копии'),
+              enabled: !_working,
+              onTap: _importBackup,
             ),
             const Divider(),
             ListTile(
