@@ -142,6 +142,13 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
     super.dispose();
   }
 
+  /// Название поставщика для списка «Источник расхода»: с адресом в скобках,
+  /// чтобы одноимённых поставщиков разных адресов можно было отличить.
+  String _supplierLabel(SupplierRow s) {
+    final address = s.address?.trim() ?? '';
+    return address.isEmpty ? s.name : '${s.name} ($address)';
+  }
+
   Future<void> _init() async {
     try {
       final supplierRepo = ref.read(supplierRepositoryProvider);
@@ -150,7 +157,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
       await channelRepo.refresh();
       final suppliers = await supplierRepo.watchAll().first;
       final channels = await channelRepo.watchAll().first;
-      _supplierNameById = {for (final s in suppliers) s.id: s.name};
+      _supplierNameById = {for (final s in suppliers) s.id: _supplierLabel(s)};
       _allChannels = channels;
 
       if (widget.isEditing) {
@@ -763,6 +770,7 @@ class _ChannelCard extends StatelessWidget {
             const SizedBox(height: 8),
             DropdownButtonFormField<String?>(
               initialValue: entry.sourceChannelId,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Источник расхода'),
               items: [
                 const DropdownMenuItem<String?>(
@@ -772,7 +780,10 @@ class _ChannelCard extends StatelessWidget {
                 for (final c in sources)
                   DropdownMenuItem<String?>(
                     value: c.id,
-                    child: Text('${supplierNameById[c.supplierId] ?? '?'} — ${c.name}'),
+                    child: Text(
+                      '${supplierNameById[c.supplierId] ?? '?'} — ${c.name}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
               ],
               onChanged: onSourceChanged,
