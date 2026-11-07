@@ -17,6 +17,7 @@ String buildPaymentQr(
   Supplier supplier,
   Payment payment, {
   bool includeCounterVal = false,
+  double? amountOverride,
 }) {
   final details = supplier.bankDetails;
   if (details == null) {
@@ -39,7 +40,8 @@ String buildPaymentQr(
     );
   }
 
-  final kopecks = (payment.calculatedAmount * 100).round();
+  final amount = amountOverride ?? payment.calculatedAmount;
+  final kopecks = (amount * 100).round();
   final purpose = _buildPurpose(
     supplier.paymentPurposeTemplate,
     payment.period,

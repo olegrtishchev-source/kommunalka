@@ -11,7 +11,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../database/app_database.dart';
-import '../../app.dart';
 import '../../models/payment.dart';
 import '../../models/supplier.dart';
 import '../../providers/payment_provider.dart';
@@ -159,11 +158,25 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     final payment = _payment;
     final supplier = _supplier;
     if (payment == null || supplier == null) return;
+      final amount = double.tryParse(
+        _amountController.text.trim().replaceAll(' ', '').replaceAll(',', '.'),
+      );
+
+      if (amount == null || amount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Проверьте сумму платежа')),
+        );
+        return;
+      }
     final supplierModel = _supplierFromRow(supplier);
     final paymentModel = _paymentFromRow(payment);
     final String qrData;
     try {
-      qrData = buildPaymentQr(supplierModel, paymentModel);
+      qrData = buildPaymentQr(
+        supplierModel,
+        paymentModel,
+        amountOverride: amount,
+      );
     } on ArgumentError catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(describeError(e))),
@@ -177,7 +190,19 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
+      builder: (dialogContext) => ScaffoldMessenger(
+        // Свой messenger внутри диалога: уведомления показываются поверх
+        // окна с QR, а не на экране под ним.
+        child: Builder(
+          builder: (messengerContext) => Scaffold(
+            backgroundColor: Colors.transparent,
+            body: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.pop(dialogContext),
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Dialog(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
           child: SingleChildScrollView(
@@ -219,11 +244,17 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       child: const Text('Письмо'),
                     ),
                   TextButton(
-                    onPressed: () => _saveQr(qrData),
+                    onPressed: () => _saveQr(
+                      qrData,
+                      ScaffoldMessenger.of(messengerContext),
+                    ),
                     child: const Text('Сохранить в галерею'),
                   ),
                   TextButton(
-                    onPressed: () => _shareQr(qrData),
+                    onPressed: () => _shareQr(
+                      qrData,
+                      ScaffoldMessenger.of(messengerContext),
+                    ),
                     child: const Text('Поделиться'),
                   ),
                   TextButton(
@@ -231,6 +262,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                     child: const Text('Закрыть'),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -257,7 +294,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     return safeName.isEmpty ? 'Коммуналка' : safeName;
   }
 
-  Future<void> _saveQr(String qrData) async {
+  Future<void> _saveQr(
+    String qrData,
+    ScaffoldMessengerState messenger,
+  ) async {
     try {
       final bytes = await _qrPngBytes(qrData);
       await Gal.putImageBytes(
@@ -265,17 +305,20 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         name: _qrFileName(),
         album: _qrAlbum(),
       );
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('QR сохранён в галерею.')),
       );
     } catch (e) {
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text('Не удалось сохранить QR: $e')),
       );
     }
   }
 
-  Future<void> _shareQr(String qrData) async {
+  Future<void> _shareQr(
+    String qrData,
+    ScaffoldMessengerState messenger,
+  ) async {
     try {
       final bytes = await _qrPngBytes(qrData);
       await SharePlus.instance.share(
@@ -286,7 +329,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         ),
       );
     } catch (e) {
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text('Не удалось поделиться QR: $e')),
       );
     }
@@ -314,21 +357,47 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   /// «Письмо»: открывает почтовое приложение с готовым письмом (ТЗ §4.12).
-  Future<void> _openEmail(String readingText, String readingEmail) async {
-    final personalAccount = _supplier?.personalAccount ?? '';
-    final period = _payment == null ? '' : formatPeriod(_payment!.period);
-    final body = 'Лицевой счёт: $personalAccount\n'
-        'Период: $period\n'
-        'Показание: $readingText';
-    final uri = Uri(
-      scheme: 'mailto',
-      path: readingEmail,
-      queryParameters: {'subject': 'Показания счётчика', 'body': body},
+
+Future<void> _openEmail(String readingText, String readingEmail) async {
+  final personalAccount = _supplier?.personalAccount ?? '';
+  final period = _payment == null ? '' : formatPeriod(_payment!.period);
+
+  final body = 'Лицевой счёт: $personalAccount\n'
+      'Период: $period\n'
+      'Показание: $readingText';
+
+  final uri = Uri(
+    scheme: 'mailto',
+    path: readingEmail,
+    queryParameters: {
+      'subject': 'Показания счётчика',
+      'body': body,
+    },
+  );
+
+  try {
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
     );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось открыть почтовое приложение'),
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка открытия почты: $e'),
+        ),
+      );
     }
   }
+}
 
   /// Рисует QR-строку в PNG-байты (для сохранения в галерею и «Поделиться»).
   /// Фон заливается белым вручную: QrPainter рисует только модули на
