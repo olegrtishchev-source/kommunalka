@@ -97,6 +97,7 @@ class SupplierRepository {
     String? cabinetUrl,
     String? readingEmail,
     String? address,
+    bool paysPreviousPeriod = false,
   }) async {
     final row = await guardRepositoryCall(
       () => _client
@@ -112,6 +113,7 @@ class SupplierRepository {
             'cabinet_url': cabinetUrl,
             'reading_email': readingEmail,
             'address': address,
+            'pays_previous_period': paysPreviousPeriod,
           })
           .select()
           .single(),
@@ -139,6 +141,7 @@ class SupplierRepository {
             'cabinet_url': supplier.cabinetUrl,
             'reading_email': supplier.readingEmail,
             'address': supplier.address,
+            'pays_previous_period': supplier.paysPreviousPeriod,
           })
           .eq('id', supplier.id)
           .select()
@@ -271,6 +274,7 @@ class SupplierRepository {
       cabinetUrl: Value(s.cabinetUrl),
       readingEmail: Value(s.readingEmail),
       address: Value(s.address),
+      paysPreviousPeriod: Value(s.paysPreviousPeriod),
       archivedAt: Value(s.archivedAt),
       createdAt: Value(s.createdAt),
       updatedAt: Value(s.updatedAt),

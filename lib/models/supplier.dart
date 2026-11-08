@@ -78,6 +78,7 @@ class Supplier {
     this.cabinetUrl,
     this.readingEmail,
     this.address,
+    this.paysPreviousPeriod = false,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -96,6 +97,9 @@ class Supplier {
   final String? readingEmail;
   /// Адрес (объект) поставщика — свободный текст, ТЗ §4.13.
   final String? address;
+  /// Оплата по показаниям прошлого периода: сумма платежа берётся по расходу
+  /// предыдущего месяца.
+  final bool paysPreviousPeriod;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -121,6 +125,7 @@ class Supplier {
       cabinetUrl: json['cabinet_url'] as String?,
       readingEmail: json['reading_email'] as String?,
       address: json['address'] as String?,
+      paysPreviousPeriod: json['pays_previous_period'] as bool? ?? false,
       archivedAt: parseDateOrNull(json['archived_at']),
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),
@@ -141,6 +146,7 @@ class Supplier {
       'cabinet_url': cabinetUrl,
       'reading_email': readingEmail,
       'address': address,
+      'pays_previous_period': paysPreviousPeriod,
       'archived_at': archivedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),

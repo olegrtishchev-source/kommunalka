@@ -27,6 +27,7 @@ create table suppliers (
   cabinet_url text,
   reading_email text,
   address text,
+  pays_previous_period boolean not null default false,
   archived_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -133,6 +133,20 @@ class $SuppliersTable extends Suppliers
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _paysPreviousPeriodMeta =
+      const VerificationMeta('paysPreviousPeriod');
+  @override
+  late final GeneratedColumn<bool> paysPreviousPeriod = GeneratedColumn<bool>(
+    'pays_previous_period',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("pays_previous_period" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -180,6 +194,7 @@ class $SuppliersTable extends Suppliers
     cabinetUrl,
     readingEmail,
     address,
+    paysPreviousPeriod,
     archivedAt,
     createdAt,
     updatedAt,
@@ -288,6 +303,15 @@ class $SuppliersTable extends Suppliers
         address.isAcceptableOrUnknown(data['address']!, _addressMeta),
       );
     }
+    if (data.containsKey('pays_previous_period')) {
+      context.handle(
+        _paysPreviousPeriodMeta,
+        paysPreviousPeriod.isAcceptableOrUnknown(
+          data['pays_previous_period']!,
+          _paysPreviousPeriodMeta,
+        ),
+      );
+    }
     if (data.containsKey('archived_at')) {
       context.handle(
         _archivedAtMeta,
@@ -367,6 +391,10 @@ class $SuppliersTable extends Suppliers
         DriftSqlType.string,
         data['${effectivePrefix}address'],
       ),
+      paysPreviousPeriod: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}pays_previous_period'],
+      )!,
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -410,6 +438,10 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
 
   /// Адрес (объект) поставщика — свободный текст (ТЗ §4.13).
   final String? address;
+
+  /// Оплата по показаниям прошлого периода (сумма платежа = расход за
+  /// предыдущий месяц, а не за текущий).
+  final bool paysPreviousPeriod;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -426,6 +458,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     this.cabinetUrl,
     this.readingEmail,
     this.address,
+    required this.paysPreviousPeriod,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -463,6 +496,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     if (!nullToAbsent || address != null) {
       map['address'] = Variable<String>(address);
     }
+    map['pays_previous_period'] = Variable<bool>(paysPreviousPeriod);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -501,6 +535,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       address: address == null && nullToAbsent
           ? const Value.absent()
           : Value(address),
+      paysPreviousPeriod: Value(paysPreviousPeriod),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -529,6 +564,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       cabinetUrl: serializer.fromJson<String?>(json['cabinetUrl']),
       readingEmail: serializer.fromJson<String?>(json['readingEmail']),
       address: serializer.fromJson<String?>(json['address']),
+      paysPreviousPeriod: serializer.fromJson<bool>(json['paysPreviousPeriod']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -552,6 +588,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       'cabinetUrl': serializer.toJson<String?>(cabinetUrl),
       'readingEmail': serializer.toJson<String?>(readingEmail),
       'address': serializer.toJson<String?>(address),
+      'paysPreviousPeriod': serializer.toJson<bool>(paysPreviousPeriod),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -571,6 +608,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     Value<String?> cabinetUrl = const Value.absent(),
     Value<String?> readingEmail = const Value.absent(),
     Value<String?> address = const Value.absent(),
+    bool? paysPreviousPeriod,
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -593,6 +631,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     cabinetUrl: cabinetUrl.present ? cabinetUrl.value : this.cabinetUrl,
     readingEmail: readingEmail.present ? readingEmail.value : this.readingEmail,
     address: address.present ? address.value : this.address,
+    paysPreviousPeriod: paysPreviousPeriod ?? this.paysPreviousPeriod,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -623,6 +662,9 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           ? data.readingEmail.value
           : this.readingEmail,
       address: data.address.present ? data.address.value : this.address,
+      paysPreviousPeriod: data.paysPreviousPeriod.present
+          ? data.paysPreviousPeriod.value
+          : this.paysPreviousPeriod,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -646,6 +688,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           ..write('cabinetUrl: $cabinetUrl, ')
           ..write('readingEmail: $readingEmail, ')
           ..write('address: $address, ')
+          ..write('paysPreviousPeriod: $paysPreviousPeriod, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -667,6 +710,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     cabinetUrl,
     readingEmail,
     address,
+    paysPreviousPeriod,
     archivedAt,
     createdAt,
     updatedAt,
@@ -687,6 +731,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           other.cabinetUrl == this.cabinetUrl &&
           other.readingEmail == this.readingEmail &&
           other.address == this.address &&
+          other.paysPreviousPeriod == this.paysPreviousPeriod &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -705,6 +750,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
   final Value<String?> cabinetUrl;
   final Value<String?> readingEmail;
   final Value<String?> address;
+  final Value<bool> paysPreviousPeriod;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -722,6 +768,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     this.cabinetUrl = const Value.absent(),
     this.readingEmail = const Value.absent(),
     this.address = const Value.absent(),
+    this.paysPreviousPeriod = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -740,6 +787,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     this.cabinetUrl = const Value.absent(),
     this.readingEmail = const Value.absent(),
     this.address = const Value.absent(),
+    this.paysPreviousPeriod = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -763,6 +811,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     Expression<String>? cabinetUrl,
     Expression<String>? readingEmail,
     Expression<String>? address,
+    Expression<bool>? paysPreviousPeriod,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -782,6 +831,8 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       if (cabinetUrl != null) 'cabinet_url': cabinetUrl,
       if (readingEmail != null) 'reading_email': readingEmail,
       if (address != null) 'address': address,
+      if (paysPreviousPeriod != null)
+        'pays_previous_period': paysPreviousPeriod,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -802,6 +853,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     Value<String?>? cabinetUrl,
     Value<String?>? readingEmail,
     Value<String?>? address,
+    Value<bool>? paysPreviousPeriod,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -821,6 +873,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       cabinetUrl: cabinetUrl ?? this.cabinetUrl,
       readingEmail: readingEmail ?? this.readingEmail,
       address: address ?? this.address,
+      paysPreviousPeriod: paysPreviousPeriod ?? this.paysPreviousPeriod,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -869,6 +922,9 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     if (address.present) {
       map['address'] = Variable<String>(address.value);
     }
+    if (paysPreviousPeriod.present) {
+      map['pays_previous_period'] = Variable<bool>(paysPreviousPeriod.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -899,6 +955,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
           ..write('cabinetUrl: $cabinetUrl, ')
           ..write('readingEmail: $readingEmail, ')
           ..write('address: $address, ')
+          ..write('paysPreviousPeriod: $paysPreviousPeriod, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -3080,6 +3137,7 @@ typedef $$SuppliersTableCreateCompanionBuilder =
       Value<String?> cabinetUrl,
       Value<String?> readingEmail,
       Value<String?> address,
+      Value<bool> paysPreviousPeriod,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -3099,6 +3157,7 @@ typedef $$SuppliersTableUpdateCompanionBuilder =
       Value<String?> cabinetUrl,
       Value<String?> readingEmail,
       Value<String?> address,
+      Value<bool> paysPreviousPeriod,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -3171,6 +3230,11 @@ class $$SuppliersTableFilterComposer
 
   ColumnFilters<String> get address => $composableBuilder(
     column: $table.address,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get paysPreviousPeriod => $composableBuilder(
+    column: $table.paysPreviousPeriod,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3259,6 +3323,11 @@ class $$SuppliersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get paysPreviousPeriod => $composableBuilder(
+    column: $table.paysPreviousPeriod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3332,6 +3401,11 @@ class $$SuppliersTableAnnotationComposer
   GeneratedColumn<String> get address =>
       $composableBuilder(column: $table.address, builder: (column) => column);
 
+  GeneratedColumn<bool> get paysPreviousPeriod => $composableBuilder(
+    column: $table.paysPreviousPeriod,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => column,
@@ -3387,6 +3461,7 @@ class $$SuppliersTableTableManager
                 Value<String?> cabinetUrl = const Value.absent(),
                 Value<String?> readingEmail = const Value.absent(),
                 Value<String?> address = const Value.absent(),
+                Value<bool> paysPreviousPeriod = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -3404,6 +3479,7 @@ class $$SuppliersTableTableManager
                 cabinetUrl: cabinetUrl,
                 readingEmail: readingEmail,
                 address: address,
+                paysPreviousPeriod: paysPreviousPeriod,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -3423,6 +3499,7 @@ class $$SuppliersTableTableManager
                 Value<String?> cabinetUrl = const Value.absent(),
                 Value<String?> readingEmail = const Value.absent(),
                 Value<String?> address = const Value.absent(),
+                Value<bool> paysPreviousPeriod = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -3440,6 +3517,7 @@ class $$SuppliersTableTableManager
                 cabinetUrl: cabinetUrl,
                 readingEmail: readingEmail,
                 address: address,
+                paysPreviousPeriod: paysPreviousPeriod,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

@@ -34,6 +34,26 @@ class PaymentRepository {
     DateTime period,
   ) => _dao.getForSupplierAndPeriod(supplierId, period);
 
+  /// Сумма за период по показаниям этого периода — для поставщиков с оплатой
+  /// по показаниям прошлого периода. Считается по снимку показаний (а не по
+  /// calculated_amount), потому что calculated_amount у таких платежей уже
+  /// сам равен сумме предыдущего периода. Если снимка нет (платёж внесён
+  /// вручную), берётся calculated_amount. Null — платежа за период нет.
+  Future<double?> readingsAmountForPeriod(
+    String supplierId,
+    DateTime period,
+  ) async {
+    final row = await _dao.getForSupplierAndPeriod(supplierId, period);
+    if (row == null) return null;
+    final snapshotJson = row.readingSnapshot;
+    if (snapshotJson == null) return row.calculatedAmount;
+    final entries = (jsonDecode(snapshotJson) as List<dynamic>)
+        .map((e) => ReadingSnapshotEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+    if (entries.isEmpty) return row.calculatedAmount;
+    return entries.fold<double>(0, (sum, e) => sum + e.amount);
+  }
+
   /// Подтягивает все платежи пользователя из Supabase (RLS уже ограничивает
   /// выборку его записями) и обновляет локальный кеш.
   Future<void> refresh() async {

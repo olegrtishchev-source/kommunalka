@@ -25,6 +25,10 @@ class Suppliers extends Table {
   TextColumn get readingEmail => text().nullable()();
   /// Адрес (объект) поставщика — свободный текст (ТЗ §4.13).
   TextColumn get address => text().nullable()();
+  /// Оплата по показаниям прошлого периода (сумма платежа = расход за
+  /// предыдущий месяц, а не за текущий).
+  BoolColumn get paysPreviousPeriod =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();

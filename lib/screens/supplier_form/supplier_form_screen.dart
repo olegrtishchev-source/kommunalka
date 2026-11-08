@@ -81,6 +81,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
   final _nameController = TextEditingController();
   final _categoryController = TextEditingController();
   final _addressController = TextEditingController();
+  bool _paysPreviousPeriod = false;
   final _paymentPurposeController = TextEditingController();
   final _recipientController = TextEditingController();
   final _innController = TextEditingController();
@@ -179,6 +180,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
         _nameController.text = supplier.name;
         _categoryController.text = supplier.category ?? '';
         _addressController.text = supplier.address ?? '';
+        _paysPreviousPeriod = supplier.paysPreviousPeriod;
         _paymentPurposeController.text = supplier.paymentPurposeTemplate ?? '';
         _type = SupplierType.fromDb(supplier.type);
         final bankDetailsJson = supplier.bankDetails;
@@ -313,6 +315,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
             name: _nameController.text.trim(),
             category: _emptyToNull(_categoryController.text),
             address: _emptyToNull(_addressController.text),
+            paysPreviousPeriod: _paysPreviousPeriod,
             type: _type,
             bankDetails: bankDetails,
             paymentPurposeTemplate: _emptyToNull(_paymentPurposeController.text),
@@ -330,6 +333,7 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
           name: _nameController.text.trim(),
           category: _emptyToNull(_categoryController.text),
           address: _emptyToNull(_addressController.text),
+          paysPreviousPeriod: _paysPreviousPeriod,
           type: _type,
           bankDetails: bankDetails,
           paymentPurposeTemplate: _emptyToNull(_paymentPurposeController.text),
@@ -548,6 +552,18 @@ class _SupplierFormScreenState extends ConsumerState<SupplierFormScreen> {
                       onSelectionChanged: (selection) =>
                           setState(() => _type = selection.first),
                     ),
+                    if (_type == SupplierType.withReadings)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Оплата по показаниям прошлого периода'),
+                        subtitle: const Text(
+                          'В QR и «К оплате» — сумма за предыдущий месяц, '
+                          'показания вносятся как обычно',
+                        ),
+                        value: _paysPreviousPeriod,
+                        onChanged: (value) =>
+                            setState(() => _paysPreviousPeriod = value),
+                      ),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: _pickQrSource,

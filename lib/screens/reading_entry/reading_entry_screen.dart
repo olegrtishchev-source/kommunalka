@@ -331,18 +331,41 @@ class _ReadingEntryScreenState extends ConsumerState<ReadingEntryScreen> {
     final totalAmount = entries.fold<double>(0, (sum, e) => sum + e.amount);
     final totalConsumption =
         entries.fold<double>(0, (sum, e) => sum + e.consumption);
-    final payment = await ref.read(paymentRepositoryProvider).create(
+    final paymentRepo = ref.read(paymentRepositoryProvider);
+    var payableAmount = totalAmount;
+    var previousMissing = false;
+    if (_supplier?.paysPreviousPeriod ?? false) {
+      // Оплата по показаниям прошлого периода: к оплате — сумма за
+      // предыдущий месяц; показания текущего остаются в снимке платежа.
+      final previousPeriod = DateTime(period.year, period.month - 1, 1);
+      final previousAmount = await paymentRepo.readingsAmountForPeriod(
+        widget.supplierId,
+        previousPeriod,
+      );
+      previousMissing = previousAmount == null;
+      payableAmount = previousAmount ?? 0;
+    }
+    final payment = await paymentRepo.create(
           supplierId: widget.supplierId,
           period: period,
           readingSnapshot: entries,
           consumption: totalConsumption,
-          calculatedAmount: totalAmount,
+          calculatedAmount: payableAmount,
         );
 
     if (!mounted) return;
     if (skipped.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Без учёта в сумме: ${skipped.join(', ')}.')),
+      );
+    } else if (previousMissing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Платежа за прошлый период нет — к оплате 0 ₽. '
+            'Сумму можно ввести вручную на экране оплаты.',
+          ),
+        ),
       );
     }
     context.go('/suppliers/${widget.supplierId}/payment/${payment.id}');

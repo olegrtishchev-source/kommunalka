@@ -497,7 +497,7 @@ Future<void> _openEmail(String readingText, String readingEmail) async {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Расчётная сумма: ${formatAmount(_payment!.calculatedAmount)}',
+                          '${_supplier?.paysPreviousPeriod == true ? 'К оплате (по показаниям прошлого периода)' : 'Расчётная сумма'}: ${formatAmount(_payment!.calculatedAmount)}',
                         ),
                         const SizedBox(height: 8),
                         Text(
