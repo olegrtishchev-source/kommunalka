@@ -366,13 +366,12 @@ Future<void> _openEmail(String readingText, String readingEmail) async {
       'Период: $period\n'
       'Показание: $readingText';
 
-  final uri = Uri(
-    scheme: 'mailto',
-    path: readingEmail,
-    queryParameters: {
-      'subject': 'Показания счётчика',
-      'body': body,
-    },
+  // Uri(queryParameters) кодирует пробел как «+», а почтовые приложения
+  // (например, Яндекс Почта) показывают его буквально. Для mailto нужен %20.
+  final uri = Uri.parse(
+    'mailto:$readingEmail'
+    '?subject=${Uri.encodeComponent('Показания счётчика')}'
+    '&body=${Uri.encodeComponent(body)}',
   );
 
   try {
